@@ -1,0 +1,12 @@
+**/*.deb
+**/*.rpm
+**/*.exe
+
+**/*.log
+
+**/*.zip
+**/*.tar.gz
+**/*.tar.xz
+
+**/__pycache__/
+**/build/

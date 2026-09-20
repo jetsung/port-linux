@@ -1,0 +1,111 @@
+<svg viewBox="0 0 720 580" width="720" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <!-- Title: content spans x=95 to x=625, center=360 -->
+  <text x="360" y="28" font-size="16" font-weight="600" fill="#1e293b" text-anchor="middle">Xiaomi MiMo 跨平台移植流程</text>
+
+  <!-- ============ Input sources ============ -->
+  <!-- Windows exe: x=95, y=50, w=230, h=36, center=210, bottom=86 -->
+  <rect x="95" y="50" width="230" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="210" y="72" font-size="12" fill="#1e40af" text-anchor="middle">Windows exe (v26.914.142245)</text>
+
+  <!-- Linux deb: x=395, y=50, w=230, h=36, center=510, bottom=86 -->
+  <rect x="395" y="50" width="230" height="36" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="510" y="72" font-size="12" fill="#b45309" text-anchor="middle">Linux deb (v26.909.91205)</text>
+
+  <!-- Connectors: sources → merge bar (straight down) -->
+  <!-- exe: 210,86+5=91 → 210,99 (merge bar top-11) -->
+  <path d="M210,91 L 210,99" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <!-- deb: 510,91 → 510,99 -->
+  <path d="M510,91 L 510,99" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+  <!-- Merge bar: port-mimo.sh label -->
+  <rect x="200" y="110" width="320" height="22" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="360" y="125" font-size="11" fill="#64748b" text-anchor="middle">port-mimo.sh</text>
+
+  <!-- Merge bar → step1: 360,132+5=137 → 360,139 (step1 top-11) -->
+  <path d="M360,137 L 360,139" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ Processing steps (vertical) ============ -->
+
+  <!-- Step 1: x=200, y=150, w=320, h=36, center=360, bottom=186 -->
+  <rect x="200" y="150" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="164" font-size="11" fill="#64748b">1</text>
+  <text x="360" y="172" font-size="12" fill="#1e293b" text-anchor="middle">解包 exe → 取新版 app.asar + evolve-seed</text>
+
+  <!-- Arrow 1→2: 360,186+5=191 → 360,207-11=196 (too short, need ≥25px gap) -->
+  <!-- Fix: step2 y=215, gap=29, arrow 191→204 -->
+  <path d="M360,191 L 360,204" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 2: y=215, bottom=251 -->
+  <rect x="200" y="215" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="229" font-size="11" fill="#64748b">2</text>
+  <text x="360" y="237" font-size="12" fill="#1e293b" text-anchor="middle">解包 deb → 取 Linux 应用目录 + usr + control</text>
+
+  <!-- Arrow 2→3: 251+5=256 → 280-11=269 -->
+  <path d="M360,256 L 360,269" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 3: y=280, bottom=316 -->
+  <rect x="200" y="280" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="294" font-size="11" fill="#64748b">3</text>
+  <text x="360" y="302" font-size="12" fill="#1e293b" text-anchor="middle">替换 app.asar + evolve-seed 为 Windows 新版</text>
+
+  <!-- Arrow 3→4: 316+5=321 → 345-11=334 -->
+  <path d="M360,321 L 360,334" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 4: y=345, bottom=381 — highlighted (login fix) -->
+  <rect x="200" y="345" width="320" height="36" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="216" y="359" font-size="11" fill="#b45309">4</text>
+  <text x="360" y="367" font-size="12" fill="#b45309" text-anchor="middle">注入 node-machine-id 垫片（登录修复）</text>
+
+  <!-- Arrow 4→5: 381+5=386 → 410-11=399 -->
+  <path d="M360,386 L 360,399" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 5: y=410, bottom=446 -->
+  <rect x="200" y="410" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="424" font-size="11" fill="#64748b">5</text>
+  <text x="360" y="432" font-size="12" fill="#1e293b" text-anchor="middle">组装应用目录</text>
+
+  <!-- Arrow 5→6: 446+5=451 → 475-11=464 -->
+  <path d="M360,451 L 360,464" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 6: y=475, bottom=511 -->
+  <rect x="200" y="475" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="489" font-size="11" fill="#64748b">6</text>
+  <text x="360" y="497" font-size="12" fill="#1e293b" text-anchor="middle">打包 deb / rpm</text>
+
+  <!-- ============ Connectors: step 6 → outputs (straight down + horizontal) ============ -->
+  <!-- step6 bottom=511, outputs top=540, gap=29 -->
+  <!-- Left: from 360,516 down to 360,528 then left to 210,528 then down to 210,529 -->
+  <!-- Use smooth curves: split at 360,525 -->
+  <!-- Left path: 360,516 → curve left-down → 210,529 -->
+  <path d="M360,516 C 360,530 210,520 210,529" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <!-- Right path: 360,516 → curve right-down → 510,529 -->
+  <path d="M360,516 C 360,530 510,520 510,529" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- ============ Output products ============ -->
+  <!-- deb: x=95, y=540, w=230, h=36, center=210 -->
+  <rect x="95" y="540" width="230" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="210" y="562" font-size="11" fill="#166534" text-anchor="middle">XiaomiMiMo-26.914.142245-x64.deb</text>
+
+  <!-- rpm: x=395, y=540, w=230, h=36, center=510 -->
+  <rect x="395" y="540" width="230" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="510" y="562" font-size="11" fill="#166534" text-anchor="middle">xiaomi-mimo-desktop-26.914…rpm</text>
+
+</svg>
