@@ -12,7 +12,7 @@
 #           间接调用，shellcheck 静态分析无法追踪，属误报。
 
 #============================================================
-# File: build.sh
+# File: port-devecostudio.sh
 # Description: 构建跨发行版、解压即用的 DevEco Studio 通用 tarball
 # URL: https://fx4.cn/devecobuild
 # Author: Jetsung Chan <i@jetsung.com>
@@ -21,7 +21,7 @@
 # UpdatedAt: 2026-08-16
 #============================================================
 
-# build.sh — 构建跨发行版、解压即用的 DevEco Studio 通用 tarball。
+# port-devecostudio.sh — 构建跨发行版、解压即用的 DevEco Studio 通用 tarball。
 #
 # 产出自包含的
 # devecostudio-<ver>-linux-x86_64.tar.gz（解压到任意位置即可运行），或经
@@ -85,8 +85,9 @@ usage() {
   cat <<EOF
 构建跨发行版、解压即用的 DevEco Studio 通用 tarball。
 
-必填项：构建时必须提供 Mac 源（通过 -m，可为本地路径或 http(s) 地址），且其文件名/地址中含版本号；
-CLI 工具源（通过 -c，本地路径或地址）与 IDEA 源（通过 -i 本地路径/地址，或省略后按 -a 自动拼接）也须可解析。
+源提供方式：通过 -m/-c/-i 显式指定（本地路径或 http(s):// 地址），或在未指定时由脚本
+自动探测当前目录下的压缩包（devecostudio-mac-*.zip、commandline-tools-linux-*.zip、
+idea-*.tar.gz），按文件名 glob 自行判断。Mac 源的文件名/地址中须含版本号。
 未指定 -v/--pkgver 时，版本号自动从 Mac 源的文件名或地址中提取。
 
 若只给 --install DIR（不提供任何源），且 build/work/devecostudio-<ver> 已存在，
@@ -96,7 +97,7 @@ CLI 工具源（通过 -c，本地路径或地址）与 IDEA 源（通过 -i 本
 用 --install DIR 则直接安装到指定文件夹（本地使用免打包，可加 --no-package 跳过 tar.gz）。
 
 用法：
-  build.sh -m MAC [-c CLI] [-i IDEA] [-v PKGVER] [-a IDEAVER]
+  port-devecostudio.sh -m MAC [-c CLI] [-i IDEA] [-v PKGVER] [-a IDEAVER]
                           [-x] [-n] [-I DIR] [-P] [--clear-all]
 
   -m, --mac MAC           Mac 源：本地路径（devecostudio-mac-<ver>.zip）或以 http(s):// 开头的下载地址
@@ -428,7 +429,7 @@ audit_idea_consistency() {
   fi
 }
 
-# 从原始 .dmg 读出 Mac 自带 JBR 的版本（build.sh 解压 Mac 时已排除 jbr，
+# 从原始 .dmg 读出 Mac 自带 JBR 的版本（port-devecostudio.sh 解压 Mac 时已排除 jbr，
 # 故需临时从 build/work/mac_zip 下的 dmg 中提取 release 文件）。
 # 输出 "JAVA_VERSION / IMPLEMENTOR_VERSION" 或空串。
 dump_mac_jbr_version() {
@@ -1175,9 +1176,28 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# 无参数 -> 等同 -h（注意 IDEAVER 有默认值，不纳入“未指定”判断；
-# --clear-all / --clear-build 为独立开关，亦排除在外）
-if [[ $# -eq 0 && -z "$MAC$CLI$IDEA$PKGVER" && $((EXPOSE_CLI + NO_DOWNLOAD + NO_PACKAGE + CLEAN + CLEAN_BUILD + CLEAR_ENV + CLEAR_SDK)) -eq 0 && -z "$INSTALL_DIR" ]]; then
+# 自动探测：未显式指定的源在当前目录按文件名 glob 查找（参考 port-mimo.sh 风格）
+CWD="$(pwd -P)"
+if [[ -z "$MAC" ]]; then
+  for f in "$CWD"/devecostudio-mac-*.zip; do
+    [[ -f "$f" ]] && MAC="$(readlink -f "$f")" && { log "自动探测 Mac 源：$MAC"; break; }
+  done
+fi
+if [[ -z "$CLI" ]]; then
+  for f in "$CWD"/commandline-tools-linux-*.zip; do
+    [[ -f "$f" ]] && CLI="$(readlink -f "$f")" && { log "自动探测 CLI 源：$CLI"; break; }
+  done
+fi
+if [[ -z "$IDEA" ]]; then
+  for f in "$CWD"/idea-*.tar.gz; do
+    [[ -f "$f" ]] && IDEA="$(readlink -f "$f")" && { log "自动探测 IDEA 源：$IDEA"; break; }
+  done
+fi
+
+# 自动探测后仍无任何源、无任何操作开关 -> 显示帮助
+# （注意 IDEAVER 有默认值，不纳入"未指定"判断；
+#  --clear-all / --clear-build 为独立开关，亦排除在外）
+if [[ -z "$MAC$CLI$IDEA$PKGVER" && $((EXPOSE_CLI + NO_DOWNLOAD + NO_PACKAGE + CLEAN + CLEAN_BUILD + CLEAR_ENV + CLEAR_SDK)) -eq 0 && -z "$INSTALL_DIR" ]]; then
   usage
   exit 0
 fi

@@ -1,0 +1,108 @@
+<svg viewBox="0 0 720 615" width="720" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#a855f7"/>
+    </marker>
+  </defs>
+
+  <!-- Title: content spans x=95 to x=625, center=360 -->
+  <text x="360" y="28" font-size="16" font-weight="600" fill="#1e293b" text-anchor="middle">DevEco Studio 通用发行版构建流程</text>
+
+  <!-- ============ 三个上游源 ============ -->
+
+  <!-- Mac DMG: x=95, y=50, w=250, h=54(两行), center=220, bottom=104 -->
+  <rect x="95" y="50" width="250" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="220" y="72" font-size="12" fill="#1e40af" text-anchor="middle">devecostudio-mac-*.zip</text>
+  <text x="220" y="92" font-size="10" fill="#64748b" text-anchor="middle">平台无关 Java 代码 / 插件 / product-info.json</text>
+
+  <!-- CLI 工具: x=95, y=129, w=250, h=54, center=220, bottom=183 -->
+  <rect x="95" y="129" width="250" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="220" y="151" font-size="12" fill="#1e40af" text-anchor="middle">commandline-tools-linux-x64-*.zip</text>
+  <text x="220" y="171" font-size="10" fill="#64748b" text-anchor="middle">鸿蒙 SDK + node/hvigor/ohpm 等原生工具</text>
+
+  <!-- IDEA tarball: x=430, y=50, w=230, h=54, center=545, bottom=104 -->
+  <rect x="430" y="50" width="230" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="545" y="72" font-size="12" fill="#b45309" text-anchor="middle">idea-&lt;ideaver&gt;.tar.gz</text>
+  <text x="545" y="92" font-size="10" fill="#64748b" text-anchor="middle">Linux JBR / fsnotifier / .so 原生库</text>
+
+  <!-- 脚本条: x=200, y=225, w=320, h=22, center=360, top=225, bottom=247 -->
+  <rect x="200" y="225" width="320" height="22" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="360" y="240" font-size="11" fill="#64748b" text-anchor="middle">port-devecostudio.sh</text>
+
+  <!-- 连接: Mac DMG → 脚本条 (左上进入) -->
+  <path d="M220,109 C 220,170 220,180 220,214" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <!-- CLI → 脚本条: bottom=183 → top-11=214, 直线下行 -->
+  <path d="M220,188 L 220,214" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <!-- IDEA → 脚本条 (右上进入) -->
+  <path d="M545,109 C 545,170 500,180 500,214" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+  <!-- IDEA 版本自动解析注记（右侧小标注） -->
+  <text x="670" y="70" font-size="10" fill="#64748b" text-anchor="end">IDEA 版本自动解析：</text>
+  <text x="670" y="86" font-size="10" fill="#64748b" text-anchor="end">读 buildNumber 前三段</text>
+  <text x="670" y="102" font-size="10" fill="#64748b" text-anchor="end">查 releases feed 取最新 patch</text>
+
+  <!-- ============ 处理步骤（垂直主干，center=360） ============ -->
+
+  <!-- Step 1: y=280, w=320, h=54(两行), bottom=334 -->
+  <rect x="200" y="280" width="320" height="54" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="294" font-size="11" fill="#64748b">1</text>
+  <text x="360" y="302" font-size="12" fill="#1e293b" text-anchor="middle">解包三源（DMG 用 7z / CLI 用 bsdtar 保符号链接）</text>
+  <text x="360" y="320" font-size="10" fill="#64748b" text-anchor="middle">mac_dmg/ · cli/ · idea/（build/work/ 跨次复用）</text>
+
+  <!-- 脚本条 → step1: bottom=247+5=252 → 280-11=269 -->
+  <path d="M360,252 L 360,269" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 2: y=363, h=54, bottom=417 -->
+  <rect x="200" y="363" width="320" height="54" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="377" font-size="11" fill="#64748b">2</text>
+  <text x="360" y="385" font-size="12" fill="#1e293b" text-anchor="middle">重组应用树 devecostudio-&lt;pkgver&gt;/</text>
+  <text x="360" y="403" font-size="10" fill="#64748b" text-anchor="middle">版本对照审核（JBR / build.txt 前缀一致性）</text>
+
+  <!-- Arrow 1→2: 334+5=339 → 363-11=352 -->
+  <path d="M360,339 L 360,352" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 3: y=446, h=36, bottom=482 -->
+  <rect x="200" y="446" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="460" font-size="11" fill="#64748b">3</text>
+  <text x="360" y="468" font-size="12" fill="#1e293b" text-anchor="middle">权限修复 + 启动器适配（xcb / 软链桥）</text>
+
+  <!-- Arrow 2→3: 417+5=422 → 446-11=435 -->
+  <path d="M360,422 L 360,435" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ 产物（两个并列出口） ============ -->
+
+  <!-- tarball: x=95, y=515, w=250, h=36, center=220, bottom=551 -->
+  <rect x="95" y="515" width="250" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="220" y="537" font-size="12" fill="#166534" text-anchor="middle">devecostudio-&lt;ver&gt;-linux-x86_64.tar.gz</text>
+
+  <!-- install-cli-tools.sh: x=430, y=515, w=230, h=36, center=545, bottom=551 -->
+  <rect x="430" y="515" width="230" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="545" y="537" font-size="12" fill="#166534" text-anchor="middle">install-cli-tools.sh（--expose-cli）</text>
+
+  <!-- Step3 → 两个产物: 分叉曲线 -->
+  <path d="M300,487 C 300,505 220,495 220,504" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <path d="M420,487 C 420,505 545,495 545,504" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- 图例（底部之外） -->
+  <rect x="95" y="586" width="12" height="12" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="113" y="598" font-size="10" fill="#64748b">上游源</text>
+  <rect x="180" y="586" width="12" height="12" fill="#f8fafc" stroke="#64748b"/>
+  <text x="198" y="598" font-size="10" fill="#64748b">处理</text>
+  <rect x="260" y="586" width="12" height="12" fill="#d1fae5" stroke="#22c55e"/>
+  <text x="278" y="598" font-size="10" fill="#64748b">产物</text>
+</svg>

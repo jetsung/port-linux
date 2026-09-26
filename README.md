@@ -14,6 +14,17 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
 |---|---|---|---|---|
 | [`mimo-desktop/`](mimo-desktop/) | Xiaomi MiMo 桌面客户端 | Linux deb + Windows exe 分层移植，内置 node-machine-id 登录修复 | rpm / deb | [README](mimo-desktop/README.md) |
 | [`deveco-studio/`](deveco-studio/) | DevEco Studio（HarmonyOS IDE） | Mac DMG + Linux CLI 工具 + IntelliJ IDEA Linux 组件重组，IDEA 基线自动解析 | 跨发行版 tar.gz | [README](deveco-studio/README.md) |
+| [`workbuddy/`](workbuddy/) | 腾讯 WorkBuddy（AI Agent 办公工具） | macOS zip 解压 app.asar + 替换 Linux 原生模块 + Electron Linux runtime | deb / rpm | [README](workbuddy/README.md) |
+| [`codearts-agent/`](codearts-agent/) | 华为 CodeArts Agent（VSCode fork） | macOS zip 平台无关 app 层 + VSCode 官方 linux-x64 运行时基底重组 | deb / rpm (x64) | [README](codearts-agent/README.md) |
+| [`codearts/`](codearts/) | 华为云 CodeArts 桌面智能体 | macOS zip 解压 app.asar + Electron Linux runtime（非 VSCode fork，与 codearts-agent 是不同产品） | deb / rpm (x64) | [README](codearts/README.md) |
+
+> **⚠️ 状态说明**：后新增的 `codearts-agent/` 与 `codearts/` 两个华为项目**目前均无法正常使用**——
+> 它们的核心功能依赖华为的智能体运行时（AgentKernel / agent-kernel），而该原生二进制
+> 只有 darwin（x64/arm64）与 linux-arm64 版本，**无 linux-x64 产物**（已逐一验证 mac zip、
+> 官方 arm64 deb、marketplace vsix 三个渠道）。安装包可以构建，IDE 界面可启动，
+> 但智能体功能不可用，整体不具备日常使用价值。详见各自 README 的「已知限制」。
+
+各案例 README 均在开头配有 SVG 移植流程图（`assets/port-flow.svg`），可先看图了解整体移植思路。
 
 ## 目录约定
 

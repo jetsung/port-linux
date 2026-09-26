@@ -1,0 +1,105 @@
+<svg viewBox="0 0 720 600" width="720" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <!-- Title: content spans x=140 to x=580, center=360 -->
+  <text x="360" y="28" font-size="16" font-weight="600" fill="#1e293b" text-anchor="middle">WorkBuddy 跨平台移植流程</text>
+
+  <!-- ============ 输入源（左列：macOS 资源链，右列：Electron） ============ -->
+
+  <!-- macOS zip: x=140, y=50, w=220, h=36, center=250, bottom=86 -->
+  <rect x="140" y="50" width="220" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="250" y="72" font-size="12" fill="#1e40af" text-anchor="middle">WorkBuddy-darwin-x64 zip</text>
+
+  <!-- npm 模块: x=140, y=115, w=220, h=36, center=250, bottom=151 -->
+  <rect x="140" y="115" width="220" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="250" y="137" font-size="12" fill="#1e40af" text-anchor="middle">better-sqlite3 / node-pty</text>
+
+  <!-- Electron zip: x=460, y=50, w=180, h=36, center=550, bottom=86 -->
+  <rect x="460" y="50" width="180" height="36" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="550" y="72" font-size="12" fill="#b45309" text-anchor="middle">Electron linux-x64</text>
+
+  <!-- 脚本条: x=200, y=185, w=320, h=22, center=360, top=185, bottom=207 -->
+  <rect x="200" y="185" width="320" height="22" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="360" y="200" font-size="11" fill="#64748b" text-anchor="middle">port-workbuddy.sh</text>
+
+  <!-- 连接：macOS zip → 脚本条（直线，235→360 需曲线） -->
+  <!-- macos bottom=86 → 脚本条 top=185。左列走脚本条左上角进入 -->
+  <path d="M250,91 C 250,140 220,150 220,178" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <!-- npm 模块 → 脚本条: bottom=151 → top-11=174, 直线下行 -->
+  <path d="M250,156 L 250,174" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <!-- Electron → 脚本条: bottom=86 → 曲线到脚本条右上角 (540,178) -->
+  <path d="M550,91 C 550,140 540,150 540,178" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+  <!-- ============ 处理步骤（垂直主干，center=360） ============ -->
+
+  <!-- Step 1: y=240, w=320, h=36, bottom=276 -->
+  <rect x="200" y="240" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="254" font-size="11" fill="#64748b">1</text>
+  <text x="360" y="262" font-size="12" fill="#1e293b" text-anchor="middle">解压 app.asar → app.asar.unpacked/</text>
+
+  <!-- 脚本条 → step1: bottom=207+5=212 → 240-11=229 -->
+  <path d="M360,212 L 360,229" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 2: y=305, bottom=341 -->
+  <rect x="200" y="305" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="319" font-size="11" fill="#64748b">2</text>
+  <text x="360" y="327" font-size="12" fill="#1e293b" text-anchor="middle">替换原生模块为 Linux x64 构建</text>
+
+  <!-- Arrow 1→2: 276+5=281 → 305-11=294 -->
+  <path d="M360,281 L 360,294" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 3: y=370, bottom=406 -->
+  <rect x="200" y="370" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="384" font-size="11" fill="#64748b">3</text>
+  <text x="360" y="392" font-size="12" fill="#1e293b" text-anchor="middle">可移植补丁（tray 菜单 / resourcesPath）</text>
+
+  <!-- Arrow 2→3: 341+5=346 → 370-11=359 -->
+  <path d="M360,346 L 360,359" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 4: y=435, bottom=471 -->
+  <rect x="200" y="435" width="320" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="216" y="449" font-size="11" fill="#64748b">4</text>
+  <text x="360" y="457" font-size="12" fill="#1e293b" text-anchor="middle">组装 /opt/workbuddy + electron/</text>
+
+  <!-- Arrow 3→4: 406+5=411 → 435-11=424 -->
+  <path d="M360,411 L 360,424" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ 产物 ============ -->
+
+  <!-- deb: x=140, y=520, w=220, h=36, center=250, bottom=556 -->
+  <rect x="140" y="520" width="220" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="250" y="542" font-size="12" fill="#166534" text-anchor="middle">workbuddy_&lt;ver&gt;_amd64.deb</text>
+
+  <!-- rpm: x=360, y=520, w=220, h=36, center=470, bottom=556 -->
+  <rect x="360" y="520" width="220" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="470" y="542" font-size="12" fill="#166534" text-anchor="middle">workbuddy-&lt;ver&gt;.x86_64.rpm</text>
+
+  <!-- Step4 → deb: 曲线从 step4 底部中心到 deb 顶部 -->
+  <!-- step4 bottom=471 → deb top=520。分叉: 从 (360,476) 曲线到 (250,509) 与 (470,509) -->
+  <path d="M300,476 C 300,500 250,490 250,509" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <path d="M420,476 C 420,500 470,490 470,509" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- 图例（body 之外，右下侧） -->
+  <rect x="140" y="576" width="12" height="12" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="158" y="586" font-size="10" fill="#64748b">输入</text>
+  <rect x="220" y="576" width="12" height="12" fill="#f8fafc" stroke="#64748b"/>
+  <text x="238" y="586" font-size="10" fill="#64748b">处理</text>
+  <rect x="300" y="576" width="12" height="12" fill="#d1fae5" stroke="#22c55e"/>
+  <text x="318" y="586" font-size="10" fill="#64748b">产物</text>
+</svg>

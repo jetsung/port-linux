@@ -1,12 +1,14 @@
-# DevEco Studio — 通用发行版构建脚本（build.sh）
+# DevEco Studio — 通用发行版构建脚本（port-devecostudio.sh）
 
 > 跨发行版、解压即用的 DevEco Studio 通用 tarball 构建器。
 > 基于华为 Mac DMG + Linux 命令行工具 + IntelliJ IDEA 的 Linux 组件重新组合。
 >
 > 本案例是 [port-linux](../README.md) 移植工具集收录的移植方案之一。
 
-`build.sh` 把三个上游源重新组合成一个**解压即用**的目录树（类似
+`port-devecostudio.sh` 把三个上游源重新组合成一个**解压即用**的目录树（类似
 `idea-*.tar.gz` / `android-studio-*.tar.gz`）：
+
+![DevEco Studio 通用发行版构建流程](assets/port-flow.svg)
 
 - 解压到**任意位置**（如 `~/apps`、`/opt`）即可运行，**不绑定 `/opt`**；
 - 启动入口为 `<解压目录>/bin/devecostudio.sh`，内部用 `readlink -f` 解析自身，
@@ -28,6 +30,9 @@
 > （可直接把下载地址或文件路径传给脚本，见下文「用法」）。
 > IDEA 源**默认由脚本从 Mac 的 `buildNumber` 自动解析**，一般无需手动处理；
 > 如需手动下载，Linux 版下载页面为 <https://www.jetbrains.com/idea/download/?section=linux>。
+>
+> 三个源也可直接放在当前目录，不指定 `-m`/`-c`/`-i` 时脚本按文件名 glob
+> 自动识别（见下文「自动探测」）。
 
 ## IDEA 版本自动解析（无需手填）
 
@@ -43,7 +48,7 @@ IntelliJ IDEA release 的 `build` 字段（→ `2026.1.1`）。脚本据此：
 下个月 `2026.1.6` 发布时会自动取用——**除非你用 `-a` 显式覆盖**：
 
 ```bash
-./build.sh --mac ... --cli ... --ideaver 2026.1.5   # 可选覆盖，跳过自动探测
+./port-devecostudio.sh --mac ... --cli ... --ideaver 2026.1.5   # 可选覆盖，跳过自动探测
 ```
 
 构建时脚本会回显 **组件版本对照表**（DevEco 版本 / IDEA 构建号 / JBR 版本
@@ -64,9 +69,9 @@ build/
 
 - 中间产物**默认保留**：第二次用本地包构建时直接复用 `build/work/` 与
   `build/cache/`，不再解压、不再下载，省时省资源。
-- 想强制重新解压/下载：`./build.sh --clear-all` 清除 `build/work/` 与
+- 想强制重新解压/下载：`./port-devecostudio.sh --clear-all` 清除 `build/work/` 与
   `build/cache/` 后退出（最终产物 `build/out/` 保留）。
-- 仅清除整合包（保留解压源与下载缓存）：`./build.sh --clear-build`。
+- 仅清除整合包（保留解压源与下载缓存）：`./port-devecostudio.sh --clear-build`。
 
 ## 用法
 
@@ -75,10 +80,30 @@ build/
 - 以 `http://` 或 `https://` 开头 → 视为 URL，下载并缓存到 `build/cache/`；
 - 否则视为本地路径，文件必须存在（不存在直接报错退出）。
 
+### 0. 自动探测（最简：不指定任何源）
+
+把三个源压缩包放在当前目录，**不传 `-m`/`-c`/`-i`**，脚本按文件名 glob 自行查找：
+
+| 未指定的源 | 在当前目录匹配的文件名 |
+|---|---|
+| Mac 源 | `devecostudio-mac-*.zip` |
+| CLI 工具源 | `commandline-tools-linux-*.zip` |
+| IDEA 源 | `idea-*.tar.gz` |
+
+```bash
+# 当前目录有 devecostudio-mac-26.0.0.621.zip、commandline-tools-linux-x64-26.0.0.621.zip
+# （idea-*.tar.gz 可省略，由脚本自动解析下载）
+./port-devecostudio.sh
+```
+
+显式指定的源优先于自动探测；两者可混用（如只显式传 `--mac`，CLI/IDEA 仍自动探测）。
+自动探测后若仍无任何源、也无任何操作开关，则显示帮助。
+
 ### 1. 本地包传入（推荐用于反复测试）
 
 ```bash
-./build.sh \
+# 显式指定三个本地包
+./port-devecostudio.sh \
     --mac  devecostudio-mac.zip \
     --cli  commandline-tools-linux-x64.zip \
     --idea idea-2026.1.5.tar.gz
@@ -96,7 +121,7 @@ build/
 JetBrains CDN 拼出下载地址：
 
 ```bash
-./build.sh \
+./port-devecostudio.sh \
     --mac  "https://.../devecostudio-mac-26.0.0.621.zip" \
     --cli  "https://.../commandline-tools-linux-x64-26.0.0.621.zip"
 ```
@@ -132,7 +157,7 @@ tar -xzf devecostudio-<pkgver>-linux-x86_64.tar.gz -C ~/apps
 
 ```bash
 # 只想本地用，不打包（最快）：组装后直接装到 ~/apps/devecostudio
-./build.sh --mac devecostudio-mac.zip \
+./port-devecostudio.sh --mac devecostudio-mac.zip \
     --cli commandline-tools-linux-x64.zip \
     --install ~/apps/devecostudio --no-package
 
@@ -153,7 +178,7 @@ tar -xzf devecostudio-<pkgver>-linux-x86_64.tar.gz -C ~/apps
 若你希望把它们暴露到 PATH，加 `--expose-cli`：
 
 ```bash
-./build.sh --mac ... --cli ... --expose-cli
+./port-devecostudio.sh --mac ... --cli ... --expose-cli
 ```
 
 这会额外在 `build/out/` 生成一个 `install-cli-tools.sh`，运行（需 root）后把工具
@@ -185,7 +210,7 @@ tar -xzf devecostudio-<pkgver>-linux-x86_64.tar.gz -C ~/apps
 
 ## 模拟器运行注意事项（Linux 特有问题，已打包层处理）
 
-DevEco 的模拟器在 Linux 上有几个上游怪癖，`build.sh` 已在启动器
+DevEco 的模拟器在 Linux 上有几个上游怪癖，`port-devecostudio.sh` 已在启动器
 `bin/devecostudio.sh` 与权限修复中处理，这里记录以便维护时理解。
 
 ### 1. Emulator 二进制需要执行权限
