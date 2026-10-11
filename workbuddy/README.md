@@ -117,7 +117,14 @@ sudo apt install unzip tar nodejs npm curl dpkg-dev
 - 这是从 macOS 资源移植的非官方版本，部分依赖 macOS 的功能可能不可用。
 - 上游界面更新可能使兼容补丁失效。
 - 仅支持 x86_64（amd64）；arm64 需 `darwin-arm64` 源 zip 与对应原生模块。
-- `process.resourcesPath` 补丁硬编码 `/opt/workbuddy`，故仅支持装到 `/opt`（deb / rpm 均如此）。
+- IM 集成资产（`workbuddy-editor-sdk-supervisor`、`resources/im-backend-cmd/im-napi.node`、
+  `@genie/im-channels-native` 内 `ImSDKForMac.framework` 等）官方仅有 Mach-O 构建，Linux 无对应
+  产物。daemon 启动对它们做硬性存在性校验，脚本保留 macOS 二进制占位以放行启动，故应用可正常
+  运行但 IM 集成功能在 Linux 上不可用。
+- 基底 rpm 自带的 `resources/runtime/python` 缺少 `bin/python3`，启动日志中的
+  `[VendorExtract] python: packaged runtime ... missing bin/python3` 为基底自带问题，非致命。
+- 安装路径固定为 `/opt/WorkBuddy`；daemon 代码依赖 Electron 原生
+  `process.resourcesPath`（即 `/opt/WorkBuddy/resources`）解析资产，不再做路径字面量替换。
 
 ## 许可
 

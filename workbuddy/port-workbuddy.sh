@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # port-workbuddy.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm）
 #
-# 基底合并模式：以官方 Linux rpm (5.5.6) 为基底，将 macOS 新版 zip (5.6.2) 的
-# app.asar / app.asar.unpacked 合并入基底，复用基底的 Electron 37 运行时与
-# 完整的 Linux 原生模块，再按需用 npm 的 linux-x64 包覆盖 sandbox 等新增版本。
+# 基底合并模式：以官方 Linux rpm 为基底，将 macOS 新版 zip 的
+# app.asar / app.asar.unpacked 合并入基底，复用基底的 Electron 运行时与
+# 完整的 Linux 原生模块，再按需用 npm 的 linux-x64 包覆盖 sandbox 等新增版本
+# （sandbox / node-pty 版本从新版包自动探测）。
 #
 # 用法:
 #   ./port-workbuddy.sh                              # 自动探测当前目录 rpm + zip
@@ -41,8 +42,10 @@ port-workbuddy.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm�
                                形式: <CDN>/<完整原始 URL>
   NPM_CONFIG_USERCONFIG        npm 配置文件路径（默认 ~/.npmrc），
                                其中的 registry 用于下载 node 依赖
+  SANDBOX_VER=<ver>            手动指定 sandbox linux-x64 版本；默认从新版包自动探测
+  NODE_PTY_VER=<ver>           手动指定 node-pty linux-x64 版本；默认从新版包自动探测
 
-依赖: unzip, tar, rpm2cpio, cpio, node, npx, curl/wget; 打 deb 需 dpkg-deb; 打 rpm 需 rpmbuild
+依赖: unzip, tar, file, rpm2cpio, cpio, node, npx, curl/wget; 打 deb 需 dpkg-deb; 打 rpm 需 rpmbuild
 EOF
 }
 
@@ -67,7 +70,7 @@ die() {
 }
 
 # ---------- 依赖检查 ----------
-for cmd in unzip tar node npx; do
+for cmd in unzip tar node npx file; do
   command -v "$cmd" >/dev/null 2>&1 || die "缺少依赖命令: $cmd"
 done
 command -v rpm2cpio >/dev/null 2>&1 || die "缺少依赖命令: rpm2cpio (Fedora: sudo dnf install rpm)"
@@ -76,9 +79,9 @@ if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
   die "缺少下载器: curl 或 wget"
 fi
 
-# 与 Darwin 5.6.2 的 cli/package.json optionalDependencies 一致，sandbox 需 linux-x64 覆盖
-SANDBOX_VER="5.6.10"
-NODE_PTY_VER="1.2.0-beta.14"
+# 与新版 cli/package.json 的 optionalDependencies 保持一致；未设置时从新版包自动探测
+SANDBOX_VER="${SANDBOX_VER:-}"
+NODE_PTY_VER="${NODE_PTY_VER:-}"
 INSTALL_PREFIX="/opt/WorkBuddy"
 
 # ---------- npm 镜像（从 ~/.npmrc 读取 registry） ----------
@@ -300,6 +303,12 @@ fi
 DEB_VER="${PKG_VER}${PKG_HASH:+-$PKG_HASH}"
 RPM_REL="1${PKG_HASH:+.${PKG_HASH}}"
 
+base_name="$(basename "$BASE_REF")"
+base_name="${base_name%.rpm}"
+BASE_VER="${base_name##*-rpm-}"
+BASE_VER="${BASE_VER%%-*}"
+BASE_VER="${BASE_VER%.*}"
+
 WORK="$ROOT/tmp.$(date +%s).$$"
 mkdir -p "$WORK"
 trap 'rm -rf "$WORK"' EXIT
@@ -310,7 +319,7 @@ info "工作目录: $WORK"
 # ============================================================
 # 步骤 1: 解基底 rpm → Linux 完整运行时
 # ============================================================
-step "1/6 解基底 rpm (Linux 5.5.6 完整运行时) ..."
+step "1/6 解基底 rpm (Linux ${BASE_VER} 完整运行时) ..."
 mkdir -p base_extract
 rpm2cpio "$BASE_REF" 2>/dev/null | (cd base_extract && cpio -idm --quiet 2>/dev/null) || die "基底 rpm 解包失败"
 BASE_APP="base_extract/opt/WorkBuddy"
@@ -330,10 +339,10 @@ fi
 step "2/6 解新版 Darwin zip ..."
 mkdir -p darwin_extract
 unzip -q "$SOURCE_REF" -d darwin_extract || die "Darwin zip 解压失败"
-DARWIN_RESOURCES="darwin_extract/WorkBuddy.app/Contents/Resources"
+DARWIN_RESOURCES="$WORK/darwin_extract/WorkBuddy.app/Contents/Resources"
 [[ -f "$DARWIN_RESOURCES/app.asar" ]] || die "Darwin 压缩包内未找到 app.asar"
 
-# 解压新版 app.asar（与原有逻辑一致，含 sidecar 占位修复）
+# 解压新版 app.asar（含 unpacked 缺失文件的占位修复）
 DARWIN_UNPACKED="$WORK/darwin_app.asar.unpacked"
 mkdir -p "$(dirname "$DARWIN_UNPACKED")"
 if [[ -d "$DARWIN_RESOURCES/app.asar.unpacked" ]]; then
@@ -342,8 +351,45 @@ else
   mkdir -p "$DARWIN_UNPACKED"
 fi
 asar_log="$WORK/asar-extract.log"
+# 预扫描: zip 可能丢失 unpacked 引用的点文件（如 .editor-sdk-version），一次性补占位，
+# 避免每缺一个文件就整包重跑 extract
+node -e '
+const fs = require("fs"), path = require("path");
+const [archive, unpackedDir] = process.argv.slice(1);
+const fd = fs.openSync(archive, "r");
+const sizeBuf = Buffer.alloc(8);
+fs.readSync(fd, sizeBuf, 0, 8, 0);
+// asar 布局: [sizePickle 8B][headerPickle: [4B payloadSize][4B stringLen][JSON+\0]]
+const hb = Buffer.alloc(8);
+fs.readSync(fd, hb, 0, 8, 8);
+const strLen = hb.readUInt32LE(4);
+const jb = Buffer.alloc(strLen);
+fs.readSync(fd, jb, 0, strLen, 16);
+fs.closeSync(fd);
+const header = JSON.parse(jb.toString("utf8").replace(/\0+$/, ""));
+let count = 0;
+(function walk(node, prefix) {
+  for (const [name, v] of Object.entries(node.files || {})) {
+    const p = path.join(prefix, name);
+    if (v && v.files) walk(v, p);
+    else if (v && v.unpacked) {
+      const f = path.join(unpackedDir, p);
+      if (!fs.existsSync(f)) {
+        fs.mkdirSync(path.dirname(f), { recursive: true });
+        fs.writeFileSync(f, "");
+        count++;
+      }
+    }
+  }
+})(header, "");
+console.log(count);
+' "$DARWIN_RESOURCES/app.asar" "$DARWIN_RESOURCES/app.asar.unpacked" >"$WORK/asar-placeholder.count" 2>"$WORK/asar-placeholder.err" ||
+  warn "unpacked 占位预扫描失败（将依赖重试循环）: $(head -3 "$WORK/asar-placeholder.err" | tr '\n' ' ')"
+if [[ -s "$WORK/asar-placeholder.count" ]] && [[ "$(cat "$WORK/asar-placeholder.count")" != "0" ]]; then
+  info "已预补 unpacked 缺失占位: $(cat "$WORK/asar-placeholder.count") 个"
+fi
 extracted=false
-for _ in $(seq 1 50); do
+for _ in $(seq 1 200); do
   if npx --yes asar@3.2.0 extract "$DARWIN_RESOURCES/app.asar" "$DARWIN_UNPACKED" >"$asar_log" 2>&1; then
     extracted=true
     break
@@ -361,7 +407,7 @@ for _ in $(seq 1 50); do
     ;;
   esac
 done
-[[ "$extracted" == true ]] || die "ASAR 解压 50 次后仍未完成"
+[[ "$extracted" == true ]] || die "ASAR 解压 200 次后仍未完成"
 # shellcheck disable=SC2043
 for required_file in main/index.js; do
   [[ -f "$DARWIN_UNPACKED/$required_file" ]] || die "ASAR 解压不完整: 缺少 $required_file"
@@ -384,6 +430,20 @@ cp -f "$DARWIN_RESOURCES/app.asar" "$BASE_APP/resources/app.asar"
 rm -rf "$BASE_APP/resources/app.asar.unpacked"
 cp -a "$DARWIN_UNPACKED" "$BASE_APP/resources/app.asar.unpacked"
 info "已用 Darwin $PKG_VER 替换基底的 app.asar / app.asar.unpacked"
+
+# 合并 Resources 顶层其余文件（新版必需资产如 workbuddy-editor-sdk-supervisor /
+# workbuddy-wechat-notifier / 报告 html；基底缺失时 daemon 启动校验直接失败）
+merged_top=0
+while IFS= read -r -d '' f; do
+  case "$(basename "$f")" in
+  *.icns) continue ;;
+  esac
+  cp -f "$f" "$BASE_APP/resources/$(basename "$f")"
+  merged_top=$((merged_top + 1))
+done < <(find "$DARWIN_RESOURCES" -maxdepth 1 -type f ! -name 'app.asar*' -print0)
+[[ -f "$BASE_APP/resources/workbuddy-editor-sdk-supervisor" ]] && chmod 0755 "$BASE_APP/resources/workbuddy-editor-sdk-supervisor"
+[[ -f "$BASE_APP/resources/workbuddy-wechat-notifier" ]] && chmod 0755 "$BASE_APP/resources/workbuddy-wechat-notifier"
+info "Resources 顶层文件已合并: $merged_top 个（含 IM 扩展必需资产）"
 
 # ============================================================
 # 步骤 4: Linux 化新版 unpacked（关键修复）
@@ -439,49 +499,106 @@ if [[ ! -f "$ASAR_UNPACKED/cli/vendor/genie-trash/linux-x64" ]] || [[ ! -f "$ASA
   warn "基底 vendor 回填不完整，将在 sandbox 段尝试从 npm 补齐"
 fi
 
-# ---- sandbox: 5.6.10 需 linux-x64 ELF，基底为 5.5.5，需从 npm 下载 5.6.10 linux-x64 ----
-sandbox_tgz="$CACHE_DIR/sandbox-cli-linux-x64-${SANDBOX_VER}.tgz"
-download "$NPM_REGISTRY/@tencent-ai/sandbox-cli-linux-x64/-/sandbox-cli-linux-x64-${SANDBOX_VER}.tgz" "$sandbox_tgz"
-tmp_sb="$(mktemp -d)"
-tar -xzf "$sandbox_tgz" --strip-components=1 -C "$tmp_sb" 2>/dev/null || true
-if [[ -f "$tmp_sb/bin/sandbox-center" ]]; then
-  target_sandbox="$ASAR_UNPACKED/cli/vendor/sandbox/${SANDBOX_VER}"
-  rm -rf "$target_sandbox"
-  mkdir -p "$target_sandbox"
-  cp -f "$tmp_sb/bin/sandbox-center" "$tmp_sb/bin/sandbox-cli" "$tmp_sb/bin/sandbox-cli-gc" "$tmp_sb/bin/betterleaks" "$target_sandbox/" 2>/dev/null || true
-  [[ -f "$tmp_sb/bin/wb-bridge" ]] && cp -f "$tmp_sb/bin/wb-bridge" "$target_sandbox/" 2>/dev/null || true
-  chmod 0755 "$target_sandbox"/sandbox-center "$target_sandbox"/sandbox-cli "$target_sandbox"/sandbox-cli-gc 2>/dev/null || true
-  info "vendor/sandbox 已替换为 linux-x64 ${SANDBOX_VER} ELF"
-  # 保留 tsbx_rules.json
-  if [[ -f "$BASE_APP/resources/app.asar.unpacked/cli/vendor/sandbox/5.5.5/tsbx_rules.json" ]]; then
-    # Darwin 5.6.10 已含规则，但为保险从基底复制
-    cp -f "$BASE_APP/resources/app.asar.unpacked/cli/vendor/sandbox/5.5.5/tsbx_rules.json" "$target_sandbox/" 2>/dev/null || true
+# ---- sandbox: 用与新版一致的 linux-x64 ELF 覆盖（基底不含该版本，需从 npm 下载） ----
+# 版本探测优先级: 环境变量 SANDBOX_VER > cli/package.json optionalDependencies > vendor/sandbox 目录名
+if [[ -z "$SANDBOX_VER" ]]; then
+  cli_pkg_json="$ASAR_UNPACKED/cli/package.json"
+  if [[ -f "$cli_pkg_json" ]]; then
+    SANDBOX_VER=$(node -e 'try {
+  const p = require(process.argv[1]);
+  const v = p.optionalDependencies && p.optionalDependencies["@tencent-ai/sandbox-cli-linux-x64"];
+  if (v) console.log(v);
+} catch (e) {}' "$cli_pkg_json" 2>/dev/null || true)
   fi
-  # 清理旧 Darwin 的 5.6.10 Mach-O 残留（若新旧版本同名则已被覆盖）
+fi
+if [[ -z "$SANDBOX_VER" ]]; then
+  SANDBOX_VER=$(find "$ASAR_UNPACKED/cli/vendor/sandbox" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort -V | tail -1)
+fi
+
+if [[ -z "$SANDBOX_VER" ]]; then
+  warn "未能探测 sandbox 版本，跳过 sandbox linux 覆盖（可能残留 Mach-O）"
+elif [[ ! -d "$ASAR_UNPACKED/cli/vendor/sandbox/$SANDBOX_VER" ]]; then
+  warn "新版 unpacked 中无 sandbox $SANDBOX_VER 目录，跳过 linux 覆盖"
 else
-  warn "sandbox linux-x64 ${SANDBOX_VER} 提取失败"
+  target_sandbox="$ASAR_UNPACKED/cli/vendor/sandbox/${SANDBOX_VER}"
+  # linux tarball 不含 tsbx_rules.json，先从 Darwin 目录备份再替换
+  sandbox_rules_backup="$WORK/tsbx_rules-${SANDBOX_VER}.json"
+  [[ -f "$target_sandbox/tsbx_rules.json" ]] && cp -f "$target_sandbox/tsbx_rules.json" "$sandbox_rules_backup"
+  sandbox_tgz="$CACHE_DIR/sandbox-cli-linux-x64-${SANDBOX_VER}.tgz"
+  download "$NPM_REGISTRY/@tencent-ai/sandbox-cli-linux-x64/-/sandbox-cli-linux-x64-${SANDBOX_VER}.tgz" "$sandbox_tgz"
+  tmp_sb="$(mktemp -d)"
+  tar -xzf "$sandbox_tgz" --strip-components=1 -C "$tmp_sb" 2>/dev/null || true
+  if [[ -f "$tmp_sb/bin/sandbox-center" ]]; then
+    # 清掉旧 sandbox 全部版本目录（基底版本与 Darwin Mach-O 均移除）
+    find "$ASAR_UNPACKED/cli/vendor/sandbox" -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} + 2>/dev/null || true
+    mkdir -p "$target_sandbox"
+    cp -f "$tmp_sb/bin/sandbox-center" "$tmp_sb/bin/sandbox-cli" "$tmp_sb/bin/sandbox-cli-gc" "$tmp_sb/bin/betterleaks" "$target_sandbox/" 2>/dev/null || true
+    [[ -f "$tmp_sb/bin/wb-bridge" ]] && cp -f "$tmp_sb/bin/wb-bridge" "$target_sandbox/" 2>/dev/null || true
+    chmod 0755 "$target_sandbox"/sandbox-center "$target_sandbox"/sandbox-cli "$target_sandbox"/sandbox-cli-gc 2>/dev/null || true
+    [[ -f "$sandbox_rules_backup" ]] && cp -f "$sandbox_rules_backup" "$target_sandbox/tsbx_rules.json"
+    info "vendor/sandbox 已替换为 linux-x64 ${SANDBOX_VER} ELF"
+  else
+    warn "sandbox linux-x64 ${SANDBOX_VER} 提取失败"
+  fi
+  rm -rf "$tmp_sb"
 fi
-rm -rf "$tmp_sb"
 
-# ---- node-pty linux-x64 从 npm 确保 ----
-node_pty_tgz="$CACHE_DIR/node-pty-linux-x64-${NODE_PTY_VER}.tgz"
-download "$NPM_REGISTRY/@lydell/node-pty-linux-x64/-/node-pty-linux-x64-${NODE_PTY_VER}.tgz" "$node_pty_tgz"
-if [[ ! -d "$ASAR_UNPACKED/node_modules/@lydell/node-pty-linux-x64" ]] || [[ ! -f "$ASAR_UNPACKED/node_modules/@lydell/node-pty-linux-x64/prebuilds/linux-x64/pty.node" ]]; then
-  mkdir -p "$ASAR_UNPACKED/node_modules/@lydell/node-pty-linux-x64"
-  tar -xzf "$node_pty_tgz" --strip-components=1 -C "$ASAR_UNPACKED/node_modules/@lydell/node-pty-linux-x64" 2>/dev/null || true
-  info "node-pty linux-x64 已补齐"
+# ---- node-pty: zip 通常已自带 linux-x64 包，缺失时从 npm 补齐 ----
+if [[ ! -f "$ASAR_UNPACKED/node_modules/@lydell/node-pty-linux-x64/prebuilds/linux-x64/pty.node" ]]; then
+  if [[ -z "$NODE_PTY_VER" ]]; then
+    NODE_PTY_VER=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+      "$ASAR_UNPACKED/node_modules/@lydell/node-pty/package.json" 2>/dev/null | head -1)
+  fi
+  if [[ -n "$NODE_PTY_VER" ]]; then
+    node_pty_tgz="$CACHE_DIR/node-pty-linux-x64-${NODE_PTY_VER}.tgz"
+    download "$NPM_REGISTRY/@lydell/node-pty-linux-x64/-/node-pty-linux-x64-${NODE_PTY_VER}.tgz" "$node_pty_tgz"
+    mkdir -p "$ASAR_UNPACKED/node_modules/@lydell/node-pty-linux-x64"
+    tar -xzf "$node_pty_tgz" --strip-components=1 -C "$ASAR_UNPACKED/node_modules/@lydell/node-pty-linux-x64" 2>/dev/null || true
+    info "node-pty linux-x64 ${NODE_PTY_VER} 已补齐"
+  else
+    warn "未能探测 node-pty 版本且 zip 内缺 linux-x64 pty.node"
+  fi
 fi
 
-# 清理所有残余 Mach-O .node（不影响 weixinpay 等插件的非 .node 资源）
-find "$ASAR_UNPACKED" -type f -name "*.node" -exec sh -c 'file "$1" 2>/dev/null | grep -q "Mach-O" && rm -f "$1"' _ {} \; 2>/dev/null || true
+# ---- koffi: darwin zip 仅打包 darwin 预编译，其余平台占位为空文件，从 npm 回填 linux_x64 ELF ----
+koffi_node="$ASAR_UNPACKED/node_modules/koffi/build/koffi/linux_x64/koffi.node"
+if [[ -e "$koffi_node" ]] && [[ ! -s "$koffi_node" ]]; then
+  koffi_ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+    "$ASAR_UNPACKED/node_modules/koffi/package.json" 2>/dev/null | head -1)
+  if [[ -n "$koffi_ver" ]]; then
+    koffi_tgz="$CACHE_DIR/koffi-${koffi_ver}.tgz"
+    if (download "$NPM_REGISTRY/koffi/-/koffi-${koffi_ver}.tgz" "$koffi_tgz"); then
+      tmp_koffi="$(mktemp -d)"
+      tar -xzf "$koffi_tgz" --strip-components=1 -C "$tmp_koffi" 2>/dev/null || true
+      if [[ -f "$tmp_koffi/build/koffi/linux_x64/koffi.node" ]]; then
+        mkdir -p "$(dirname "$koffi_node")"
+        cp -f "$tmp_koffi/build/koffi/linux_x64/koffi.node" "$koffi_node"
+        info "koffi linux_x64 ${koffi_ver} 已从 npm 回填"
+      else
+        warn "koffi tarball 内无 build/koffi/linux_x64/koffi.node"
+      fi
+      rm -rf "$tmp_koffi"
+    else
+      warn "koffi ${koffi_ver} 下载失败，linux_x64 占位保持为空"
+    fi
+  else
+    warn "未能探测 koffi 版本"
+  fi
+fi
+
+# 清理所有残余 Mach-O .node（不影响 weixinpay 等插件的非 .node 资源）；
+# 例外：resources/im-backend-cmd/im-napi.node 是 daemon 启动的硬性存在性校验资产，
+# 官方未提供 Linux 构建，保留 Mach-O 占位以放行启动（IM 集成功能在 Linux 不可用）
+find "$ASAR_UNPACKED" -type f -name '*.node' ! -path "$ASAR_UNPACKED/resources/im-backend-cmd/*" \
+  -exec sh -c 'file "$1" 2>/dev/null | grep -q "Mach-O" && rm -f "$1"' _ {} \; 2>/dev/null || true
 
 # ---- 可移植性补丁 ----
 main_js="$ASAR_UNPACKED/main/index.js"
 sed -i 's/tray\.on("right-click", () => this\.tray?\.popUpContextMenu(contextMenu))/tray.setContextMenu(contextMenu)/g' "$main_js" 2>/dev/null || true
-while IFS= read -r -d '' file; do
-  sed -i "s#process\.resourcesPath#'$INSTALL_PREFIX'#g" "$file"
-done < <(grep -IlZR --null 'process\.resourcesPath' "$ASAR_UNPACKED" 2>/dev/null || true)
-info "可移植性补丁已应用（tray + resourcesPath → $INSTALL_PREFIX）"
+# 注意：不要再把 process.resourcesPath 替换为安装路径字面量——Electron 原生
+# process.resourcesPath 安装后即为 /opt/WorkBuddy/resources，替换反而丢失
+# /resources 层，破坏 daemon 对 supervisor / im-napi 等资产的路径解析。
+info "可移植性补丁已应用（tray）"
 
 # ============================================================
 # 步骤 5: 组装最终应用目录（复用基底的完整目录树）
@@ -582,7 +699,7 @@ Priority: optional
 Homepage: https://www.workbuddy.cn/app
 Description: Unofficial Linux package of Tencent WorkBuddy
  WorkBuddy is an AI Agent office tool from Tencent Cloud Code Assistant.
- This package ports the upstream macOS application resources to Linux (base 5.5.6 + Darwin 5.6.2).
+ This package ports the upstream macOS application resources to Linux (base ${BASE_VER} + Darwin ${PKG_VER}).
 EOF
 
   # 复用基底的 control 脚本（若基底为 rpm，需模拟 deb 的 postinst）
@@ -666,7 +783,7 @@ Requires:       libXrandr
 Recommends:     libappindicator-gtk3
 
 %description
-Unofficial Linux package of Tencent WorkBuddy (merged base 5.5.6 + Darwin $PKG_VER).
+Unofficial Linux package of Tencent WorkBuddy (merged base ${BASE_VER} + Darwin $PKG_VER).
 
 %prep
 
@@ -743,9 +860,9 @@ fi
 
 %changelog
 * $(LC_TIME=C date '+%a %b %d %Y') ported <workbuddy@port-linux> ${PKG_VER}-${RPM_REL}
-- 合并基底 Linux 5.5.6 + Darwin ${PKG_VER} 的 app.asar
-- 复用基底 Electron 37 运行时与 Linux 原生模块
-- 覆盖 sandbox 5.6.10 为 linux-x64 ELF
+- 合并基底 Linux ${BASE_VER} + Darwin ${PKG_VER} 的 app.asar
+- 复用基底 Electron 运行时与 Linux 原生模块
+- 覆盖 sandbox ${SANDBOX_VER:-（未替换）} 为 linux-x64 ELF
 SPEC
 
   QA_RPATHS=0 rpmbuild -bb --define '_binary_payload w9.gzdio' \
