@@ -157,7 +157,7 @@ sudo apt install unzip tar nodejs npm curl python3 dpkg-dev binutils
 - `curl` 或 `wget`：下载 Electron / 源 zip / 内核 deb
 - `ar`（`binutils`）：从 `codearts-agent-*.deb` 提取内核 ELF（仅使用 `-k` 且来源为 deb 时需要）
 - `file`：校验内核 ELF 来源（仅 `-k` 直接传入内核 ELF 路径时需要）
-- `dpkg-deb`：打 deb（缺失则跳过 deb）
+- `dpkg-deb`：打 deb（缺失时降级用 `ar` + `xz` 手工拼装，二者皆缺才跳过 deb）
 - `rpmbuild`：打 rpm（缺失则跳过 rpm）
 
 npm 依赖（`npx asar`、`@hust-open-atom-club/atomgit-cli-linux-x64@0.7.3`）的下载遵循 `~/.npmrc`

@@ -14,7 +14,7 @@
 #   ./port-codearts.sh -p all                 # 同时打 deb 和 rpm
 #   ./port-codearts.sh -p deb CodeArts-0.1.26-arm64.zip
 #
-# 依赖: unzip, tar, node, npx, curl/wget, python3; 打 deb 需 dpkg-deb; 打 rpm 需 rpmbuild
+# 依赖: unzip, tar, node, npx, curl/wget, python3; 打 deb 需 dpkg-deb（缺失时降级用 binutils ar + xz）; 打 rpm 需 rpmbuild
 
 usage() {
   cat <<'EOF'
@@ -49,7 +49,8 @@ Linux 构建，用 Electron linux-x64 runtime 启动，重打包为 deb / rpm。
                                （atomgit-cli）下载
   NPM_CONFIG_REGISTRY          npm 镜像地址（~/.npmrc 未配置 registry 时使用）
 
-依赖: unzip, tar, node, npx, curl/wget, python3; 打 deb 需 dpkg-deb; 打 rpm 需 rpmbuild
+依赖: unzip, tar, node, npx, curl/wget, python3; 打 deb 需 dpkg-deb（缺失时
+      降级用 binutils 的 ar + xz 手工拼装）; 打 rpm 需 rpmbuild
 EOF
 }
 
@@ -603,8 +604,18 @@ info "应用目录就绪: $APP_DIR/final"
 OUT_BASE="$OUT_DIR"
 
 # ---------- 打 deb ----------
+# 打包工具：优先 dpkg-deb；缺失时降级为 ar 手工拼装（参考 mimo-desktop 做法）
+DEB_TOOL=""
 if [[ "$BUILD_DEB" -eq 1 ]]; then
-  command -v dpkg-deb >/dev/null 2>&1 || { warn "dpkg-deb 不可用，跳过 deb"; BUILD_DEB=0; }
+  if command -v dpkg-deb >/dev/null 2>&1; then
+    DEB_TOOL="dpkg-deb"
+  elif command -v ar >/dev/null 2>&1 && command -v xz >/dev/null 2>&1; then
+    DEB_TOOL="ar"
+    warn "dpkg-deb 不可用，降级用 ar 手工拼装 deb"
+  else
+    warn "dpkg-deb 与 ar 均不可用，跳过 deb"
+    BUILD_DEB=0
+  fi
 fi
 if [[ "$BUILD_DEB" -eq 1 ]]; then
   step "7/7 打包 deb ..."
@@ -655,7 +666,17 @@ EOF
 
   find "$DEB_BUILD" -type d -exec chmod 0755 {} +
   OUT_DEB="$OUT_BASE/codearts_${ASAR_VER}_amd64.deb"
-  dpkg-deb --root-owner-group --build "$DEB_BUILD" "$OUT_DEB" || die "deb 打包失败"
+  if [[ "$DEB_TOOL" == "dpkg-deb" ]]; then
+    dpkg-deb --root-owner-group --build "$DEB_BUILD" "$OUT_DEB" || die "deb 打包失败"
+  else
+    # Debian 包格式：ar 归档依次含 debian-binary / control.tar.xz / data.tar.xz
+    echo "2.0" > "$WORK_DIR/debian-binary"
+    ( cd "$DEB_BUILD" && tar --xz -cf "$WORK_DIR/deb-data.tar.xz" opt usr ) || die "deb data.tar 打包失败"
+    ( cd "$DEB_BUILD" && tar --xz -cf "$WORK_DIR/deb-control.tar.xz" DEBIAN ) || die "deb control.tar 打包失败"
+    ( cd "$WORK_DIR" && rm -f "$OUT_DEB" && ar rcs "$OUT_DEB" debian-binary deb-control.tar.xz deb-data.tar.xz ) \
+      || die "deb 打包失败"
+    rm -f "$WORK_DIR/debian-binary" "$WORK_DIR/deb-data.tar.xz" "$WORK_DIR/deb-control.tar.xz"
+  fi
   info "deb 已生成: $OUT_DEB ($(du -h "$OUT_DEB" | cut -f1))"
 fi
 

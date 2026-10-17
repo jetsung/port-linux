@@ -55,7 +55,7 @@ sudo apt install unzip p7zip-full bsdtar jq tar binutils nodejs npm curl python3
 - `python3`：icns → PNG 图标转换
 - `curl` 或 `wget`：下载源包与运行时
 - `ar`（`binutils`）：从官方 deb 提取原生二进制
-- `dpkg-deb`：打 deb（缺失则跳过 deb）
+- `dpkg-deb`：打 deb（缺失时降级用 `ar` + `xz` 手工拼装，二者皆缺才跳过 deb）
 - `rpmbuild`：打 rpm（缺失则跳过 rpm）
 
 具体以各案例 README 的「依赖」一节为准。
