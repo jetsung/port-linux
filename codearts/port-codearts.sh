@@ -34,13 +34,20 @@ Linux 构建，用 Electron linux-x64 runtime 启动，重打包为 deb / rpm。
   -s, --source PATH|URL        mac zip：本地路径或下载地址；省略时自动探测
                                当前目录 CodeArts-*.zip
   -e, --electron VERSION       Electron runtime 版本（默认 39.3.0）
+  -k, --kernel PATH|URL        Linux 版 agent-kernel 来源：官方
+                               codearts-agent-*-linux-x64.deb（本地路径或下载
+                               地址），或直接给内核 ELF 路径；省略时自动探测
+                               当前目录。缺失则聊天功能不可用
   -h, --help                   显示本帮助
 
 环境变量:
   DEBUG=1                      调试模式（set -eux，打印每条命令）
   IS_CHINA=1                   中国网络环境，GitHub 系域名下载走 CDN 加速
   CDN=<url>                    CDN 前缀地址（默认 https://fastfile.asfd.cn/）
-  NPM_CONFIG_USERCONFIG        npm 配置文件路径（默认 ~/.npmrc）
+  NPM_CONFIG_USERCONFIG        npm 配置文件路径（默认 ~/.npmrc），
+                               其中的 registry 用于 npx asar 与 npm 依赖
+                               （atomgit-cli）下载
+  NPM_CONFIG_REGISTRY          npm 镜像地址（~/.npmrc 未配置 registry 时使用）
 
 依赖: unzip, tar, node, npx, curl/wget, python3; 打 deb 需 dpkg-deb; 打 rpm 需 rpmbuild
 EOF
@@ -72,6 +79,7 @@ ELECTRON_VERSION="${ELECTRON_VERSION:-39.3.0}"
 
 BUILD_PLATFORM=""   # 空=自动检测
 SOURCE_REF=""       # 源 zip：本地路径或 URL
+KERNEL_REF=""       # Linux agent-kernel：本地 tar.gz/deb 路径或 URL
 
 # ---------- CDN 加速（IS_CHINA=1 时启用，仅对 GitHub 系域名生效） ----------
 CDN_URL="${CDN:-https://fastfile.asfd.cn}"
@@ -87,14 +95,30 @@ cdn_applicable() {
   esac
 }
 
-# ---------- npm 镜像（从 ~/.npmrc 读取 registry，供 npx asar 使用） ----------
+# ---------- npm 镜像（优先取 ~/.npmrc 的 registry；供 npx asar 与 npm 依赖补齐共用） ----------
+NPM_REGISTRY=""
+NPM_MIRROR_SRC=""
 NPMRC_FILE="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
 if [[ -f "$NPMRC_FILE" ]]; then
   configured_registry=$(sed -n 's/^[[:space:]]*registry[[:space:]]*=[[:space:]]*//p' "$NPMRC_FILE" | head -1)
   if [[ "$configured_registry" == http://* || "$configured_registry" == https://* ]]; then
-    export NPM_CONFIG_REGISTRY="${configured_registry%/}"
-    info "npm 镜像: $NPM_CONFIG_REGISTRY (来自 $NPMRC_FILE)"
+    NPM_REGISTRY="${configured_registry%/}"
+    NPM_MIRROR_SRC="$NPMRC_FILE"
   fi
+fi
+if [[ -z "$NPM_REGISTRY" ]]; then
+  NPM_REGISTRY="${NPM_CONFIG_REGISTRY:-}"
+  NPM_REGISTRY="${NPM_REGISTRY%/}"
+  if [[ -n "$NPM_REGISTRY" ]]; then
+    NPM_MIRROR_SRC="环境变量 NPM_CONFIG_REGISTRY"
+  fi
+fi
+if [[ -n "$NPM_REGISTRY" ]]; then
+  # 仅在用户配置了镜像时导出，避免覆盖 npm 自身的全局/项目级 registry 解析
+  export NPM_CONFIG_REGISTRY="$NPM_REGISTRY"
+  info "npm 镜像: $NPM_REGISTRY (来自 $NPM_MIRROR_SRC)"
+else
+  NPM_REGISTRY="https://registry.npmjs.org"
 fi
 
 # ---------- 平台自动检测 ----------
@@ -132,6 +156,8 @@ while [[ $# -gt 0 ]]; do
     -s=*|--source=*) SOURCE_REF="${1#*=}"; shift ;;
     -e|--electron) ELECTRON_VERSION="$2"; shift 2 ;;
     -e=*|--electron=*) ELECTRON_VERSION="${1#*=}"; shift ;;
+    -k|--kernel) KERNEL_REF="$2"; shift 2 ;;
+    -k=*|--kernel=*) KERNEL_REF="${1#*=}"; shift ;;
     -h|--help) usage; exit 0 ;;
     *.zip) SOURCE_REF="$(readlink -f "$1")"; shift ;;
     -*) usage >&2; die "未知选项: $1" ;;
@@ -198,6 +224,41 @@ download() {
   else
     wget -O "$output" "$url" || die "下载失败: $url"
   fi
+}
+
+# ---------- npm tarball 下载（跟随 NPM_REGISTRY 镜像；失败回退官方源，非致命） ----------
+http_get_file() {
+  local url="$1" output="$2"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsL --retry 3 --max-time 120 --output "$output" "$url"
+  else
+    wget -q -O "$output" "$url"
+  fi
+}
+
+# fetch_npm_tgz <包名> <版本> <输出 tgz>；缓存复用，镜像失败回退 registry.npmjs.org
+fetch_npm_tgz() {
+  local pkg="$1" ver="$2" output="$3"
+  local file="${pkg##*/}-${ver}.tgz" url
+  if [[ -f "$output" ]]; then
+    info "复用已缓存: $(basename "$output")"
+    return 0
+  fi
+  url="${NPM_REGISTRY}/${pkg}/-/${file}"
+  info "下载 (npm 镜像) $url ..."
+  if http_get_file "$url" "$output"; then
+    return 0
+  fi
+  rm -f "$output"
+  if [[ "$NPM_REGISTRY" != "https://registry.npmjs.org" ]]; then
+    url="https://registry.npmjs.org/${pkg}/-/${file}"
+    warn "npm 镜像下载失败，回退官方源: $url"
+    if http_get_file "$url" "$output"; then
+      return 0
+    fi
+    rm -f "$output"
+  fi
+  return 1
 }
 
 echo
@@ -289,16 +350,19 @@ while IFS= read -r -d '' mod; do
 done < <(find "$ASAR_UNPACKED" -name '*.node' -type f -print0 2>/dev/null)
 info "平台原生模块清理完成"
 # 注：atomgit-cli 已确认有 linux-x64 变体（@hust-open-atom-club/atomgit-cli-linux-x64），
-# 若 asar 内引用它，从 npm 补齐（download 失败会 die，故这里先探测再调用）
+# 若 asar 内引用它，经 NPM_REGISTRY（~/.npmrc 镜像）下载补齐，失败不致命
 if grep -rq 'atomgit-cli' "$ASAR_UNPACKED/out" 2>/dev/null; then
   npm_tgz="$CACHE_DIR/atomgit-cli-linux-x64.tgz"
-  if [[ -f "$npm_tgz" ]] || curl -fsL --max-time 30 -o "$npm_tgz" \
-      "https://registry.npmjs.org/@hust-open-atom-club/atomgit-cli-linux-x64/-/atomgit-cli-linux-x64-0.7.3.tgz" 2>/dev/null; then
-    mkdir -p "$ASAR_UNPACKED/node_modules/@hust-open-atom-club/atomgit-cli-linux-x64"
-    tar -xzf "$npm_tgz" --strip-components=1 -C "$ASAR_UNPACKED/node_modules/@hust-open-atom-club/atomgit-cli-linux-x64"
-    info "已补齐 atomgit-cli linux-x64"
+  npm_dst="$ASAR_UNPACKED/node_modules/@hust-open-atom-club/atomgit-cli-linux-x64"
+  if fetch_npm_tgz "@hust-open-atom-club/atomgit-cli-linux-x64" "0.7.3" "$npm_tgz"; then
+    mkdir -p "$npm_dst"
+    if tar -xzf "$npm_tgz" --strip-components=1 -C "$npm_dst"; then
+      info "已补齐 atomgit-cli linux-x64"
+    else
+      rm -f "$npm_tgz"
+      warn "atomgit-cli 解包失败（不影响主体功能）"
+    fi
   else
-    rm -f "$npm_tgz"
     warn "atomgit-cli-linux-x64 补齐失败（不影响主体功能）"
   fi
 fi
@@ -307,9 +371,128 @@ fi
 # 步骤 4: sidecar 处理（agent-kernel / officecli）
 # ============================================================
 step "4/7 sidecar 处理 ..."
-# 上游只有 darwin-arm64 / win32-x64 的 agent-kernel 与 officecli，无 linux 版。
-# 保留 yaml 配置与插件目录（纯 JS），移除不可执行的平台二进制占位。
-info "agent-kernel / officecli 无 linux-x64 上游产物，保留配置，二进制跳过（智能体功能受限，详见 README）"
+# officecli 上游只有 darwin/win32 版，无 linux-x64 产物，跳过（部分功能受限）。
+# agent-kernel：从 mac zip 提取纯 JS 插件与配置，并用 Linux 版内核 + wrapper 转接
+# （新内核为 opencode 架构 serve 子命令，配置经 POST /v1/init 注入）。
+
+# 4.1 从 mac zip 提取内核插件（纯 JS）与 agent-config.yaml
+PLUG_STAGE="$WORK_DIR/kernel-plugins"
+if [[ -d "$PLUG_STAGE/.agent-kernel" || -f "$PLUG_STAGE/agent-config.yaml" ]]; then
+  info "复用已提取的内核插件与配置"
+else
+  rm -rf "$PLUG_STAGE"; mkdir -p "$PLUG_STAGE"
+  # 插件目录（bin/.agent-kernel/）在部分版本中不存在（0.2.x 起内核自包含），
+  # 缺失时跳过；agent-config.yaml 与 cloud-sidecars.yaml 始终提取
+  unzip -qo "$SOURCE_ZIP" \
+    "CodeArts.app/Contents/Resources/bin/.agent-kernel/*" \
+    "CodeArts.app/Contents/Resources/agent-config.yaml" \
+    "CodeArts.app/Contents/Resources/cloud-sidecars.yaml" \
+    -x "*.zip" -d "$PLUG_STAGE" 2>/dev/null || true
+  # 插件目录可能不存在，移动时失败不报错
+  mv "$PLUG_STAGE/CodeArts.app/Contents/Resources/bin/.agent-kernel" "$PLUG_STAGE/" \
+    2>/dev/null || warn "内核插件目录 bin/.agent-kernel 不存在（新版内核可能自包含插件），跳过"
+  mv "$PLUG_STAGE/CodeArts.app/Contents/Resources/agent-config.yaml" "$PLUG_STAGE/" 2>/dev/null || true
+  mv "$PLUG_STAGE/CodeArts.app/Contents/Resources/cloud-sidecars.yaml" "$PLUG_STAGE/" 2>/dev/null || true
+  rm -rf "$PLUG_STAGE/CodeArts.app"
+fi
+info "内核插件与配置就绪: $PLUG_STAGE"
+
+# 4.2 获取 Linux 版 agent-kernel：官方 codearts-agent deb 内
+#     extensions/huaweicloud.codearts-snap/agentkernelServer-linux-x64
+if [[ -z "$KERNEL_REF" ]]; then
+  for f in "$CWD"/codearts-agent-linux-x64-*.deb; do
+    [[ -f "$f" ]] || continue
+    KERNEL_REF="$(readlink -f "$f")"
+    info "自动探测 Linux 内核来源: $KERNEL_REF"
+    break
+  done
+fi
+KERNEL_ELF="$WORK_DIR/agent-kernel-linux"
+if [[ -f "$KERNEL_ELF" ]] && "$KERNEL_ELF" -v >/dev/null 2>&1; then
+  info "复用已提取的 Linux agent-kernel"
+else
+  [[ -n "$KERNEL_REF" ]] || warn "未提供 Linux 版 agent-kernel（-k 或当前目录 codearts-agent-*-linux-x64.deb），聊天功能将不可用"
+  if [[ -n "$KERNEL_REF" ]]; then
+    if is_url "$KERNEL_REF"; then
+      KSRC="$CACHE_DIR/$(basename "$KERNEL_REF")"
+      download "$KERNEL_REF" "$KSRC"
+    else
+      KSRC="$KERNEL_REF"
+      [[ -f "$KSRC" ]] || die "内核来源不存在: $KSRC"
+    fi
+    rm -f "$KERNEL_ELF"
+    case "$KSRC" in
+      *.deb)
+        KTMP="$WORK_DIR/deb-extract"; rm -rf "$KTMP"; mkdir -p "$KTMP"
+        command -v ar >/dev/null 2>&1 || die "解 deb 需要 binutils(ar)"
+        ( cd "$KTMP" && ar x "$KSRC" && tar -xf data.tar.* 2>/dev/null ) || die "deb 解包失败"
+        KELF="$(find "$KTMP" -name 'agentkernelServer-linux-x64' -type f -print -quit)"
+        [[ -n "$KELF" ]] || die "deb 中未找到 agentkernelServer-linux-x64"
+        cp -f "$KELF" "$KERNEL_ELF"
+        rm -rf "$KTMP" ;;
+      *) # 直接是内核 ELF
+        file "$KSRC" 2>/dev/null | grep -q ELF || die "不支持的内核来源: $KSRC（支持官方 deb 或 ELF）"
+        cp -f "$KSRC" "$KERNEL_ELF" ;;
+    esac
+  fi
+fi
+if [[ -f "$KERNEL_ELF" ]]; then
+  chmod 755 "$KERNEL_ELF"
+  "$KERNEL_ELF" -v >/dev/null 2>&1 || warn "Linux agent-kernel 自检失败（-v），可能版本不兼容"
+  info "Linux agent-kernel 就绪: $KERNEL_ELF"
+fi
+
+# 4.3 生成内核启动 wrapper：
+#     应用（0.1.26）以 <appPath>/bin/agent-kernel.exe --port=N ... --host-init-stdin 拉起内核，
+#     并把 hostInit 配置（模型网关/凭证）写到 stdin；而 Linux 版内核为 opencode 架构，
+#     需要 `serve` 子命令并通过 POST /v1/init 接收配置。wrapper 做转接：
+#     过滤不兼容参数 → serve 启动 → 等健康检查 → 转发 hostInit 到 /v1/init
+AK_WRAPPER="$WORK_DIR/ak-wrapper.sh"
+cat > "$AK_WRAPPER" <<'WRAPEOF'
+#!/usr/bin/env bash
+# CodeArts Linux 移植 wrapper：桌面端 0.1.26 内核调用协议 → opencode 架构内核 serve 协议
+REAL="$(dirname "$(readlink -f "$0")")/agent-kernel.real"
+if [[ "$1" == "-v" || "$1" == "--version" ]]; then exec "$REAL" "$@"; fi
+
+out=(serve --print-logs)
+port=""
+skip=false
+for a in "$@"; do
+  if $skip; then out+=("$a"); skip=false; continue; fi
+  case "$a" in
+    --log-level) out+=(--log-level DEBUG);;
+    --port) out+=("$a"); skip=true;;
+    --port=*) out+=("$a"); port="${a#--port=}";;
+  esac
+done
+
+# 捕获 stdin 的 hostInit JSON
+HIFILE="$(mktemp /tmp/ak-hostinit.XXXXXX.json)"
+if [[ ! -t 0 ]]; then cat > "$HIFILE" 2>/dev/null || true; fi
+
+"$REAL" "${out[@]}" 2>&1 | sed -u 's/^/[kernel] /' &
+PID=$!
+trap 'kill $PID 2>/dev/null' TERM INT
+
+# 等待健康检查通过后，把 hostInit 注入内核（/v1/init）
+if [[ -n "$port" && -s "$HIFILE" ]]; then
+  for i in $(seq 1 100); do
+    curl -sf "http://localhost:${port}/global/health" >/dev/null 2>&1 && break
+    sleep 0.3
+  done
+  curl -s -X POST "http://localhost:${port}/v1/init" \
+    -H "Content-Type: application/json" \
+    --data-binary @"$HIFILE" >/dev/null 2>&1 || true
+fi
+rm -f "$HIFILE"
+wait $PID
+WRAPEOF
+chmod 755 "$AK_WRAPPER"
+if [[ -f "$KERNEL_ELF" ]]; then
+  info "内核启动 wrapper 就绪: $AK_WRAPPER"
+else
+  warn "无 Linux 内核，wrapper 将不随包安装"
+fi
 
 # ============================================================
 # 步骤 5: 下载 Electron Linux runtime
@@ -393,10 +576,25 @@ mkdir -p "$APP_DIR/final"
 cp -a "$ASAR_UNPACKED" "$APP_DIR/final/app"
 cp -a "$RES_STAGE/app.asar.unpacked" "$APP_DIR/final/app.asar.unpacked" 2>/dev/null || true
 cp -a "$APP_DIR/electron" "$APP_DIR/final/electron"
-cp -a "$RES_STAGE/cloud-sidecars.yaml" "$APP_DIR/final/" 2>/dev/null || true
+# cloud-sidecars.yaml 与 agent-config.yaml 必须与 app 入口同级：
+# 应用按 path.join(getAppPath(), <name>) 读取（getAppPath() = /opt/codearts/app）
+cp -a "$RES_STAGE/cloud-sidecars.yaml" "$APP_DIR/final/app/" 2>/dev/null || true
+cp -a "$PLUG_STAGE/cloud-sidecars.yaml" "$APP_DIR/final/app/" 2>/dev/null || \
+  cp -a "$RES_STAGE/cloud-sidecars.yaml" "$APP_DIR/final/app/" 2>/dev/null || true
+cp -a "$PLUG_STAGE/agent-config.yaml" "$APP_DIR/final/app/" 2>/dev/null || true
 # product.json 必须与 app 入口同级：ProductService 按
 # path.join(app.getAppPath(), 'product.json') 查找，getAppPath() = /opt/codearts/app
 cp -a "$RES_STAGE/product.json" "$APP_DIR/final/app/" 2>/dev/null || true
+# agent-kernel：真实 ELF 改名 agent-kernel.real，wrapper 顶替应用期望的
+# bin/agent-kernel.exe 名字做协议转接；插件为纯 JS，随 bin/.agent-kernel 安装
+if [[ -f "$KERNEL_ELF" ]]; then
+  install -Dm755 "$KERNEL_ELF" "$APP_DIR/final/app/bin/agent-kernel.real"
+  install -Dm755 "$AK_WRAPPER" "$APP_DIR/final/app/bin/agent-kernel.exe"
+  rm -rf "$APP_DIR/final/app/bin/.agent-kernel"
+  cp -a "$PLUG_STAGE/.agent-kernel" "$APP_DIR/final/app/bin/.agent-kernel" 2>/dev/null \
+    || warn "内核插件目录不存在，跳过（新版内核自包含插件）"
+  info "agent-kernel 与 wrapper 已装入应用目录"
+fi
 info "应用目录就绪: $APP_DIR/final"
 
 # ============================================================
