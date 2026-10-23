@@ -1,28 +1,30 @@
 #!/usr/bin/env bash
 # port-workbuddy.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm）
 #
-# 基底合并模式：以官方 Linux rpm 为基底，将 macOS 新版 zip 的
+# 基底合并模式：以官方 Linux 包（deb 优先，rpm 兼容）为基底，将 macOS 新版 zip 的
 # app.asar / app.asar.unpacked 合并入基底，复用基底的 Electron 运行时与
 # 完整的 Linux 原生模块，再按需用 npm 的 linux-x64 包覆盖 sandbox 等新增版本
 # （sandbox / node-pty 版本从新版包自动探测）。
+# deb 基底时直接复用官方维护脚本（preinst/prerm 进程管理、postinst 缓存刷新）。
 #
 # 用法:
-#   ./port-workbuddy.sh                              # 自动探测当前目录 rpm + zip
+#   ./port-workbuddy.sh                              # 自动探测当前目录 deb 基底 + 新版 zip
 #   ./port-workbuddy.sh -p all                       # 同时打 deb 和 rpm
 #   ./port-workbuddy.sh -p deb WorkBuddy-darwin-x64-*.zip
 #   ./port-workbuddy.sh -s "https://.../WorkBuddy-darwin-x64-*.zip"  # 从 URL 下载新版
 #
-# 依赖: unzip, tar, rpm2cpio, cpio, node, npx, curl/wget; 打 deb 需 dpkg-deb; 打 rpm 需 rpmbuild
+# 依赖: unzip, tar, file, node, npx, dpkg-deb, curl/wget；rpm 基底另需 rpm2cpio + cpio；
+#       打 rpm 需 rpmbuild（缺失自动跳过 rpm）
 
 usage() {
   cat <<'EOF'
 port-workbuddy.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm）
 
-基底合并模式：以官方 Linux rpm 为基底，将 macOS 新版 zip 的 app.asar
-合并入基底，复用基底的 Electron 运行时与 Linux 原生模块。
+基底合并模式：以官方 Linux 包（deb 优先，rpm 兼容）为基底，将 macOS 新版 zip 的
+app.asar 合并入基底，复用基底的 Electron 运行时与 Linux 原生模块。
 
 用法:
-  ./port-workbuddy.sh                              # 自动探测当前目录 rpm + zip
+  ./port-workbuddy.sh                              # 自动探测当前目录 deb 基底 + 新版 zip
   ./port-workbuddy.sh -p all                       # 同时打 deb 和 rpm
   ./port-workbuddy.sh -p deb WorkBuddy-darwin-x64-*.zip
   ./port-workbuddy.sh -s "https://.../WorkBuddy-darwin-x64-*.zip"  # 从 URL 下载新版
@@ -30,7 +32,8 @@ port-workbuddy.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm�
 选项:
   -p, --platform rpm|deb|all   构建目标；省略时按当前 OS 自动检测
   -s, --source PATH|URL        源 zip：本地路径或下载地址；省略时自动探测当前目录
-  -b, --base PATH              基底 rpm 路径；省略时自动探测 WorkBuddy-linux-x64-rpm-*.rpm
+  -b, --base PATH              基底包路径（.deb / .rpm）；省略时自动探测
+                               WorkBuddy-linux-x64-deb-*.deb（优先）或 *-rpm-*.rpm
   -e, --electron VERSION       Electron runtime 版本（未使用，基底已含运行时，仅作信息）
   -v, --pkgver VERSION         上游版本号；省略时从源文件名提取
   -h, --help                   显示本帮助
@@ -45,7 +48,13 @@ port-workbuddy.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm�
   SANDBOX_VER=<ver>            手动指定 sandbox linux-x64 版本；默认从新版包自动探测
   NODE_PTY_VER=<ver>           手动指定 node-pty linux-x64 版本；默认从新版包自动探测
 
-依赖: unzip, tar, file, rpm2cpio, cpio, node, npx, curl/wget; 打 deb 需 dpkg-deb; 打 rpm 需 rpmbuild
+依赖: unzip, tar, file, node, npx, dpkg-deb, curl/wget；rpm 基底另需 rpm2cpio + cpio；
+      打 rpm 需 rpmbuild（缺失自动跳过 rpm）
+
+debian:13 容器内构建前置依赖:
+  apt-get update && apt-get install -y --no-install-recommends \\
+    ca-certificates curl unzip file nodejs npm
+  # 使用 rpm 基底时另需: apt-get install -y --no-install-recommends rpm cpio
 EOF
 }
 
@@ -70,14 +79,13 @@ die() {
 }
 
 # ---------- 依赖检查 ----------
-for cmd in unzip tar node npx file; do
+for cmd in unzip tar node npx file dpkg-deb; do
   command -v "$cmd" >/dev/null 2>&1 || die "缺少依赖命令: $cmd"
 done
-command -v rpm2cpio >/dev/null 2>&1 || die "缺少依赖命令: rpm2cpio (Fedora: sudo dnf install rpm)"
-command -v cpio >/dev/null 2>&1 || die "缺少依赖命令: cpio"
 if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
   die "缺少下载器: curl 或 wget"
 fi
+# rpm2cpio / cpio 仅在基底为 rpm 时必需，检查移至基底确定之后
 
 # 与新版 cli/package.json 的 optionalDependencies 保持一致；未设置时从新版包自动探测
 SANDBOX_VER="${SANDBOX_VER:-}"
@@ -179,7 +187,7 @@ while [[ $# -gt 0 ]]; do
     SOURCE_REF="$(readlink -f "$1")"
     shift
     ;;
-  *.rpm)
+  *.deb | *.rpm)
     BASE_REF="$(readlink -f "$1")"
     shift
     ;;
@@ -218,6 +226,14 @@ if [[ -z "$SOURCE_REF" ]]; then
 fi
 [[ -n "$SOURCE_REF" ]] || die "未找到源 zip。用法: $0 [-p rpm|deb|all] <WorkBuddy-darwin-x64-*.zip>"
 if [[ -z "$BASE_REF" ]]; then
+  for f in "$CWD"/WorkBuddy-linux-x64-deb-*.deb; do
+    [[ -f "$f" ]] && BASE_REF="$(readlink -f "$f")" && {
+      info "自动探测基底 deb: $BASE_REF"
+      break
+    }
+  done
+fi
+if [[ -z "$BASE_REF" ]]; then
   for f in "$CWD"/WorkBuddy-linux-x64-rpm-*.rpm; do
     [[ -f "$f" ]] && BASE_REF="$(readlink -f "$f")" && {
       info "自动探测基底 rpm: $BASE_REF"
@@ -225,7 +241,7 @@ if [[ -z "$BASE_REF" ]]; then
     }
   done
 fi
-[[ -n "$BASE_REF" ]] || die "未找到基底 rpm。用法: $0 <WorkBuddy-darwin-x64-*.zip> <WorkBuddy-linux-x64-rpm-*.rpm>"
+[[ -n "$BASE_REF" ]] || die "未找到基底包（WorkBuddy-linux-x64-deb-*.deb 或 WorkBuddy-linux-x64-rpm-*.rpm）。用法: $0 -b <基底包> <WorkBuddy-darwin-x64-*.zip>"
 [[ -f "$SOURCE_REF" ]] || die "源 zip 不存在: $SOURCE_REF"
 [[ -f "$BASE_REF" ]] || die "基底 rpm 不存在: $BASE_REF"
 
@@ -287,7 +303,7 @@ echo
 echo -e "${C_BLUE}════════════════════════════════════════════════════${C_NC}"
 echo -e "${C_BLUE}  WorkBuddy 跨平台移植（基底合并）${C_NC}"
 echo -e "${C_BLUE}════════════════════════════════════════════════════${C_NC}"
-echo "  基底 rpm:    $BASE_REF"
+echo "  基底包:      $BASE_REF"
 echo "  新版 zip:    $SOURCE_REF"
 echo "  目标平台:    $BUILD_PLATFORM (deb=$BUILD_DEB rpm=$BUILD_RPM)"
 echo
@@ -303,11 +319,22 @@ fi
 DEB_VER="${PKG_VER}${PKG_HASH:+-$PKG_HASH}"
 RPM_REL="1${PKG_HASH:+.${PKG_HASH}}"
 
+# 基底类型与版本：WorkBuddy-linux-x64-{deb,rpm}-<ver>-<hash>.{deb,rpm} → <ver>
 base_name="$(basename "$BASE_REF")"
-base_name="${base_name%.rpm}"
-BASE_VER="${base_name##*-rpm-}"
-BASE_VER="${BASE_VER%%-*}"
-BASE_VER="${BASE_VER%.*}"
+case "$base_name" in
+*.deb)
+  BASE_TYPE="deb"
+  BASE_VER="${base_name%.deb}"
+  BASE_VER="${BASE_VER##*-deb-}"
+  ;;
+*.rpm)
+  BASE_TYPE="rpm"
+  BASE_VER="${base_name%.rpm}"
+  BASE_VER="${BASE_VER##*-rpm-}"
+  ;;
+*) die "无法识别基底包格式: $BASE_REF（支持 .deb / .rpm）" ;;
+esac
+BASE_VER="${BASE_VER%%-*}" # 去掉尾部 hash: 5.6.2.40046327-c7b525f3 → 5.6.2.40046327
 
 WORK="$ROOT/tmp.$(date +%s).$$"
 mkdir -p "$WORK"
@@ -317,11 +344,24 @@ info "工作目录: $WORK"
 
 
 # ============================================================
-# 步骤 1: 解基底 rpm → Linux 完整运行时
+# 步骤 1: 解基底包（deb / rpm）→ Linux 完整运行时
 # ============================================================
-step "1/6 解基底 rpm (Linux ${BASE_VER} 完整运行时) ..."
+step "1/6 解基底 $BASE_TYPE 包 (Linux ${BASE_VER} 完整运行时) ..."
 mkdir -p base_extract
-rpm2cpio "$BASE_REF" 2>/dev/null | (cd base_extract && cpio -idm --quiet 2>/dev/null) || die "基底 rpm 解包失败"
+case "$BASE_TYPE" in
+deb)
+  dpkg-deb -x "$BASE_REF" base_extract || die "基底 deb 解包失败"
+  # 官方维护脚本（preinst/prerm 进程管理、postinst 缓存刷新、postrm 清理）供打 deb 时复用
+  if dpkg-deb -e "$BASE_REF" "$WORK/base_control" 2>/dev/null; then
+    info "官方维护脚本已解出: $(find "$WORK/base_control" -maxdepth 1 -type f -printf '%f ' 2>/dev/null)"
+  fi
+  ;;
+rpm)
+  command -v rpm2cpio >/dev/null 2>&1 || die "缺少依赖命令: rpm2cpio (Debian: apt install rpm; Fedora: dnf install rpm)"
+  command -v cpio >/dev/null 2>&1 || die "缺少依赖命令: cpio (Debian: apt install cpio)"
+  rpm2cpio "$BASE_REF" 2>/dev/null | (cd base_extract && cpio -idm --quiet 2>/dev/null) || die "基底 rpm 解包失败"
+  ;;
+esac
 BASE_APP="base_extract/opt/WorkBuddy"
 [[ -d "$BASE_APP" ]] || die "基底内未找到 /opt/WorkBuddy"
 # 基底包含 Electron 运行时、resources/runtime、app.asar 等完整 Linux 环境
@@ -622,7 +662,7 @@ mkdir -p "$WORK/final/usr/share/applications"
 if [[ -f base_extract/usr/share/applications/workbuddy.desktop ]]; then
   cp -f base_extract/usr/share/applications/workbuddy.desktop "$WORK/final/usr/share/applications/"
 fi
-# 确保 desktop 对齐原版字段（基底已为正确，此处幂等覆盖）
+# 确保 desktop 对齐官方字段（StartupWMClass 为小写 workbuddy，与官方包一致）
 cat >"$WORK/final/usr/share/applications/workbuddy.desktop" <<EOF
 [Desktop Entry]
 Name=WorkBuddy
@@ -630,24 +670,28 @@ Exec=$INSTALL_PREFIX/workbuddy %U
 Terminal=false
 Type=Application
 Icon=workbuddy
-StartupWMClass=WorkBuddy
+StartupWMClass=workbuddy
 Comment=WorkBuddy Desktop - AI Agent Desktop Application
 MimeType=x-scheme-handler/workbuddy;
 Categories=Development;
 EOF
 
-# 图标：复用基底图标；若需多尺寸，从基底或新版 icon 统一生成
+# 图标：优先复用基底官方多尺寸图标，缺失的尺寸从新版 icon.png 补齐
 if [[ -d base_extract/usr/share/icons ]]; then
   mkdir -p "$WORK/final/usr/share"
   cp -a base_extract/usr/share/icons "$WORK/final/usr/share/" 2>/dev/null || true
 fi
-# 若缺失，则从 app.asar.unpacked/resources/icon.png 生成
-if [[ ! -f "$WORK/final/usr/share/icons/hicolor/1024x1024/apps/workbuddy.png" ]]; then
+missing_icons=()
+for sz in 16 24 32 48 64 96 128 256 512 1024; do
+  [[ -f "$WORK/final/usr/share/icons/hicolor/${sz}x${sz}/apps/workbuddy.png" ]] || missing_icons+=("$sz")
+done
+if [[ ${#missing_icons[@]} -gt 0 ]]; then
   ICON_SRC="$ASAR_UNPACKED/resources/icon.png"
-  for sz in 16 24 32 48 64 128 256 512 1024; do
-    mkdir -p "$WORK/final/usr/share/icons/hicolor/${sz}x${sz}/apps"
+  [[ -f "$ICON_SRC" ]] || die "基底图标缺失且新版无 resources/icon.png: ${missing_icons[*]}"
+  for sz in "${missing_icons[@]}"; do
     install -Dm644 "$ICON_SRC" "$WORK/final/usr/share/icons/hicolor/${sz}x${sz}/apps/workbuddy.png"
   done
+  info "图标已从新版 icon.png 补齐缺失尺寸: ${missing_icons[*]}"
 fi
 
 # 清理损坏符号链接（保留绝对路径的）
@@ -692,8 +736,8 @@ Version: ${DEB_VER}
 Architecture: amd64
 Maintainer: port-linux
 Installed-Size: ${installed_size}
-Depends: libasound2t64 | libasound2, libatk-bridge2.0-0, libatk1.0-0, libc6, libcairo2, libcups2, libdbus-1-3, libdrm2, libexpat1, libgbm1, libglib2.0-0, libgtk-3-0, libnspr4, libnss3, libpango-1.0-0, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxkbcommon0, libxrandr2
-Recommends: libappindicator3-1 | libayatana-appindicator3-1
+Depends: libasound2t64 | libasound2, libatk-bridge2.0-0, libatk1.0-0, libatspi2.0-0, libcairo2, libcups2, libdbus-1-3, libdrm2, libexpat1, libgbm1, libglib2.0-0, libgtk-3-0, libnotify4, libnspr4, libnss3, libpango-1.0-0, libsecret-1-0, libuuid1, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxkbcommon0, libxrandr2, libxss1, libxtst6, xdg-utils
+Recommends: libappindicator3-1 | libayatana-appindicator3-1, imagemagick
 Section: utils
 Priority: optional
 Homepage: https://www.workbuddy.cn/app
@@ -702,12 +746,16 @@ Description: Unofficial Linux package of Tencent WorkBuddy
  This package ports the upstream macOS application resources to Linux (base ${BASE_VER} + Darwin ${PKG_VER}).
 EOF
 
-  # 复用基底的 control 脚本（若基底为 rpm，需模拟 deb 的 postinst）
-  if [[ -f base_extract/../control.tar.xz ]]; then
-    mkdir -p "$DEB_BUILD/../deb_control"
-    tar -xJf base_extract/../control.tar.xz -C "$DEB_BUILD/../deb_control" 2>/dev/null || true
-    [[ -f "$DEB_BUILD/../deb_control/postinst" ]] && cp "$DEB_BUILD/../deb_control/postinst" "$DEB_BUILD/DEBIAN/" 2>/dev/null || true
-    [[ -f "$DEB_BUILD/../deb_control/postrm" ]] && cp "$DEB_BUILD/../deb_control/postrm" "$DEB_BUILD/DEBIAN/" 2>/dev/null || true
+  # 复用基底 deb 的官方维护脚本（preinst/prerm 优雅结束进程、postinst 刷新图标与
+  # desktop 缓存、postrm 清理）；脚本内容与版本无关，可直接复用
+  if [[ -d "$WORK/base_control" ]]; then
+    reused_maint=()
+    for m in preinst prerm postinst postrm; do
+      [[ -f "$WORK/base_control/$m" ]] && install -m755 "$WORK/base_control/$m" "$DEB_BUILD/DEBIAN/$m" && reused_maint+=("$m")
+    done
+    if [[ ${#reused_maint[@]} -gt 0 ]]; then
+      info "已复用官方维护脚本: ${reused_maint[*]}"
+    fi
   fi
 
   cat >"$DEB_BUILD/usr/share/doc/workbuddy/copyright" <<EOF
@@ -720,6 +768,12 @@ Electron license: https://github.com/electron/electron/blob/main/LICENSE
 EOF
 
   find "$DEB_BUILD" -type d -exec chmod 0755 {} +
+  # 生成 md5sums（供 dpkg -V / dpkg --verify 校验，与官方 deb 一致）
+  (
+    cd "$DEB_BUILD"
+    find . -type f ! -path './DEBIAN/*' -printf '%P\0' | sort -z |
+      xargs -0 md5sum >DEBIAN/md5sums
+  )
   OUT_DEB="$OUT_BASE/workbuddy_${DEB_VER}_amd64.deb"
   dpkg-deb --root-owner-group --build "$DEB_BUILD" "$OUT_DEB" || die "deb 打包失败"
   info "deb 已生成: $OUT_DEB ($(du -h "$OUT_DEB" | cut -f1))"
@@ -848,15 +902,7 @@ fi
 "/opt/WorkBuddy"
 "/usr/bin/workbuddy"
 "/usr/share/applications/workbuddy.desktop"
-"/usr/share/icons/hicolor/16x16/apps/workbuddy.png"
-"/usr/share/icons/hicolor/24x24/apps/workbuddy.png"
-"/usr/share/icons/hicolor/32x32/apps/workbuddy.png"
-"/usr/share/icons/hicolor/48x48/apps/workbuddy.png"
-"/usr/share/icons/hicolor/64x64/apps/workbuddy.png"
-"/usr/share/icons/hicolor/128x128/apps/workbuddy.png"
-"/usr/share/icons/hicolor/256x256/apps/workbuddy.png"
-"/usr/share/icons/hicolor/512x512/apps/workbuddy.png"
-"/usr/share/icons/hicolor/1024x1024/apps/workbuddy.png"
+"/usr/share/icons/hicolor/*/apps/workbuddy.png"
 
 %changelog
 * $(LC_TIME=C date '+%a %b %d %Y') ported <workbuddy@port-linux> ${PKG_VER}-${RPM_REL}
@@ -885,4 +931,4 @@ fi
 
 echo
 info "产物目录: $OUT_DIR"
-info "中间产物保留在 $WORK（删除: rm -rf $ROOT）"
+info "下载缓存保留在 $CACHE_DIR（删除全部中间产物: rm -rf $ROOT）"

@@ -17,6 +17,27 @@
 
 本仓库各移植脚本（`deveco-studio/`、`mimo-desktop/`、`workbuddy/` 等）统一遵循以下约束，新增脚本时同样适用：
 
+## 0. Docker 运行环境
+
+- 移植过程不再依赖宿主环境，统一在 Docker 容器内执行，基础镜像为 `debian:13`。
+- 若 `IS_CHINA=1`（中国网络环境），启动容器后必须先将 `debian:13` 的 apt 镜像源替换为清华大学源，再执行 `apt` 相关操作：
+
+```bash
+sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
+```
+
+- 若 `IS_CHINA=1`（中国网络环境），npm 相关操作（`npm install`、`npx` 下载包等）统一使用 npmmirror 镜像源：
+
+```bash
+npm config set registry https://registry.npmmirror.com
+```
+
+- 若 `IS_CHINA=1`（中国网络环境），pip 相关操作统一使用清华大学的 PyPI 镜像源：
+
+```bash
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
 ## 1. set 模式（脚本顶部）
 
 ```bash
@@ -43,4 +64,26 @@ fi
 - 脚本必须支持 `-h` / `--help` 查看帮助信息（独立 `usage()` 函数）
 - 帮助内容包含：脚本简介、用法示例、选项说明、环境变量、依赖
 - 未知选项 / 参数报错时也应先打印帮助到 stderr 再退出
+
+## 4. workbuddy 移植构建前置依赖（debian:13）
+
+`workbuddy/port-workbuddy.sh` 在 `debian:13` 容器内构建（基底 deb + macOS x64 zip 源 → 产物 deb）时，需安装以下前置依赖：
+
+```bash
+sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
+apt-get update
+apt-get install -y --no-install-recommends ca-certificates curl unzip file nodejs npm
+```
+
+| 依赖 | 用途 |
+| --- | --- |
+| `ca-certificates` + `curl` | 基础镜像无下载器，拉取源 zip / npm tgz |
+| `unzip` | 解 macOS 源 zip（`WorkBuddy-darwin-x64-*.zip`） |
+| `file` | 识别 Mach-O / ELF，清理 darwin 原生模块残留 |
+| `nodejs` + `npm` | 提供 `npx`，运行 `asar@3.2.0` 解压 `app.asar` |
+| `dpkg-deb` | 基础镜像自带（`dpkg` 包），解 deb 基底与打 deb 产物 |
+
+- 可选：使用 rpm 基底时另需 `apt-get install -y --no-install-recommends rpm cpio`（`rpm` 包提供 `rpm2cpio`）
+- 打 rpm 产物需 `rpmbuild`，Debian 仓库不提供；容器内构建时脚本自动跳过 rpm，仅产出 deb
+- npm 下载 sandbox / node-pty 等包走镜像加速：挂载宿主 `~/.npmrc`（`-v ~/.npmrc:/root/.npmrc:ro`）或设置 `NPM_CONFIG_USERCONFIG`，脚本自动读取其中的 registry
 

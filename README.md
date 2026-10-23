@@ -14,7 +14,7 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
 |---|---|---|---|---|
 | [`mimo-desktop/`](mimo-desktop/) | Xiaomi MiMo 桌面客户端 | Linux deb + Windows exe 分层移植，内置 node-machine-id 登录修复 | rpm / deb | [README](mimo-desktop/README.md) |
 | [`deveco-studio/`](deveco-studio/) | DevEco Studio（HarmonyOS IDE） | Mac DMG + Linux CLI 工具 + IntelliJ IDEA Linux 组件重组，IDEA 基线自动解析 | 跨发行版 tar.gz | [README](deveco-studio/README.md) |
-| [`workbuddy/`](workbuddy/) | 腾讯 WorkBuddy（AI Agent 办公工具） | 基底合并：官方 Linux rpm 为基底，合并 macOS 新版 zip 的 app.asar，复用基底 Electron runtime 与 Linux 原生模块 | deb / rpm | [README](workbuddy/README.md) |
+| [`workbuddy/`](workbuddy/) | 腾讯 WorkBuddy（AI Agent 办公工具） | 基底合并：官方 Linux deb 为基底（rpm 兼容），合并 macOS 新版 zip 的 app.asar，复用基底 Electron runtime 与 Linux 原生模块 | deb / rpm | [README](workbuddy/README.md) |
 | [`codearts/`](codearts/) | 华为云 CodeArts 桌面智能体 | macOS zip 解压 app.asar + Electron Linux runtime；agent-kernel 从 CodeArts IDE Linux deb 提取并经 wrapper 协议转接 | deb / rpm (x64) | [README](codearts/README.md) |
 
 > **⚠️ 状态说明**：`codearts/` 的智能体功能依赖华为的 agent-kernel 原生二进制。
@@ -36,11 +36,15 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
 └── assets/          # 流程图等资源（可选）
 ```
 
-大型源安装包（`.deb` / `.rpm` / `.exe`）不纳入版本控制，由使用者按各案例 README 自行下载。
+大型源安装包（`.deb` / `.rpm` / `.exe` / `.zip` / `.dmg`）不纳入版本控制，由使用者按各案例 README 自行下载。
 
 ## 通用依赖
 
-各案例脚本大同小异，通常需要（按案例取舍）：
+> 移植过程统一在 Docker 容器内执行（基础镜像 `debian:13`，中国网络环境先替换 apt
+> 源为清华大学源），不依赖宿主环境。各案例在容器内需安装的前置依赖清单见
+> [`AGENTS.md`](AGENTS.md)，容器内一键构建命令见各案例 README 的「构建」一节。
+
+本地直跑时，各案例脚本大同小异，通常需要（按案例取舍）：
 
 ```bash
 # Fedora
@@ -58,7 +62,7 @@ sudo apt install unzip p7zip-full bsdtar jq tar binutils nodejs npm curl python3
 - `dpkg-deb`：打 deb（缺失时降级用 `ar` + `xz` 手工拼装，二者皆缺才跳过 deb）
 - `rpmbuild`：打 rpm（缺失则跳过 rpm）
 
-具体以各案例 README 的「依赖」一节为准。
+具体以各案例 README 的「依赖」一节为准；容器内构建的前置依赖以 [`AGENTS.md`](AGENTS.md) 为准。
 
 ## 许可证
 
