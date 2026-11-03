@@ -1,12 +1,12 @@
-# DevEco Studio Linux 通用构建脚本 — 开发者须知（port-devecostudio.sh）
+# DevEco Studio Linux 通用构建脚本 — 开发者须知（port.sh）
 
-本文件是 `port-devecostudio.sh` 的开发者视角文档，记录**为什么**脚本要这么做——每一处
+本文件是 `port.sh` 的开发者视角文档，记录**为什么**脚本要这么做——每一处
 「魔法」、它绕开的上游怪癖、以及维护/复刻时需要注意的细节。`README.md` 是
 用户视角。
 
 ## 架构：三个来源，一份产物
 
-`port-devecostudio.sh` 产出**跨发行版、解压即用**的 `devecostudio-<ver>-linux-x86_64.tar.gz`
+`port.sh` 产出**跨发行版、解压即用**的 `devecostudio-<ver>-linux-x86_64.tar.gz`
 （或经 `--install DIR` 直接装到本地目录），不绑定 `/opt`，不需要 `.desktop`。
 三个上游源：
 
@@ -312,7 +312,7 @@ DMG 内跨平台 Python 工具，来自 DMG 非 CLI。
 4. `~/Library/Huawei/Sdk` → `~/.Huawei/Sdk` 桥（emulator 镜像）
 5. 经 `readlink -f` 于 `$0` exec 真启动器（经 `/usr/bin` 软链也能工作）
 
-## port-devecostudio.sh 参数速查
+## port.sh 参数速查
 
 ```
   -m, --mac MAC           Mac 源：本地路径或 http(s):// 地址（构建必填，文件名/地址含版本号）

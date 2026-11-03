@@ -47,7 +47,7 @@
 
   <!-- 脚本条: x=160, y=140, w=400, h=22, bottom=162 -->
   <rect x="160" y="140" width="400" height="22" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
-  <text x="360" y="155" font-size="11" fill="#64748b" text-anchor="middle">port-codearts.sh</text>
+  <text x="360" y="155" font-size="11" fill="#64748b" text-anchor="middle">port.sh</text>
 
   <!-- 脚本条 → step1: 162+5=167 → 195-11=184 -->
   <path d="M360,167 L 360,184" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>

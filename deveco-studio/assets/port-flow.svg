@@ -42,7 +42,7 @@
 
   <!-- 脚本条: x=200, y=225, w=320, h=22, center=360, top=225, bottom=247 -->
   <rect x="200" y="225" width="320" height="22" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
-  <text x="360" y="240" font-size="11" fill="#64748b" text-anchor="middle">port-devecostudio.sh</text>
+  <text x="360" y="240" font-size="11" fill="#64748b" text-anchor="middle">port.sh</text>
 
   <!-- 连接: Mac DMG → 脚本条 (左上进入) -->
   <path d="M220,109 C 220,170 220,180 220,214" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>

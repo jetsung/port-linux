@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# port-workbuddy.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm）
+# port.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm）
 #
 # 基底合并模式：以官方 Linux 包（deb 优先，rpm 兼容）为基底，将 macOS 新版 zip 的
 # app.asar / app.asar.unpacked 合并入基底，复用基底的 Electron 运行时与
@@ -8,26 +8,26 @@
 # deb 基底时直接复用官方维护脚本（preinst/prerm 进程管理、postinst 缓存刷新）。
 #
 # 用法:
-#   ./port-workbuddy.sh                              # 自动探测当前目录 deb 基底 + 新版 zip
-#   ./port-workbuddy.sh -p all                       # 同时打 deb 和 rpm
-#   ./port-workbuddy.sh -p deb WorkBuddy-darwin-x64-*.zip
-#   ./port-workbuddy.sh -s "https://.../WorkBuddy-darwin-x64-*.zip"  # 从 URL 下载新版
+#   ./port.sh                              # 自动探测当前目录 deb 基底 + 新版 zip
+#   ./port.sh -p all                       # 同时打 deb 和 rpm
+#   ./port.sh -p deb WorkBuddy-darwin-x64-*.zip
+#   ./port.sh -s "https://.../WorkBuddy-darwin-x64-*.zip"  # 从 URL 下载新版
 #
 # 依赖: unzip, tar, file, node, npx, dpkg-deb, curl/wget；rpm 基底另需 rpm2cpio + cpio；
 #       打 rpm 需 rpmbuild（缺失自动跳过 rpm）
 
 usage() {
   cat <<'EOF'
-port-workbuddy.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm）
+port.sh — 将腾讯 WorkBuddy macOS 版移植到 Linux（deb / rpm）
 
 基底合并模式：以官方 Linux 包（deb 优先，rpm 兼容）为基底，将 macOS 新版 zip 的
 app.asar 合并入基底，复用基底的 Electron 运行时与 Linux 原生模块。
 
 用法:
-  ./port-workbuddy.sh                              # 自动探测当前目录 deb 基底 + 新版 zip
-  ./port-workbuddy.sh -p all                       # 同时打 deb 和 rpm
-  ./port-workbuddy.sh -p deb WorkBuddy-darwin-x64-*.zip
-  ./port-workbuddy.sh -s "https://.../WorkBuddy-darwin-x64-*.zip"  # 从 URL 下载新版
+  ./port.sh                              # 自动探测当前目录 deb 基底 + 新版 zip
+  ./port.sh -p all                       # 同时打 deb 和 rpm
+  ./port.sh -p deb WorkBuddy-darwin-x64-*.zip
+  ./port.sh -s "https://.../WorkBuddy-darwin-x64-*.zip"  # 从 URL 下载新版
 
 选项:
   -p, --platform rpm|deb|all   构建目标；省略时按当前 OS 自动检测

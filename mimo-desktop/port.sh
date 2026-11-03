@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# port-mimo.sh — 将 Windows 版 Xiaomi MiMo 移植到 Linux
+# port.sh — 将 Windows 版 Xiaomi MiMo 移植到 Linux
 #
 # 一键脚本：原版 Linux deb + Windows exe → rpm + deb（含登录修复）
 #
 # 用法:
-#   ./port-mimo.sh                                   # 自动探测目录内的 .deb 和 .exe，按当前 OS 生成对应包
-#   ./port-mimo.sh -p all                            # 同时生成 rpm 和 deb
-#   ./port-mimo.sh -p rpm                            # 仅生成 rpm
-#   ./port-mimo.sh -p deb                            # 仅生成 deb
-#   ./port-mimo.sh <*.exe> [<*.deb>] [-p rpm|deb|all]
+#   ./port.sh                                   # 自动探测目录内的 .deb 和 .exe，按当前 OS 生成对应包
+#   ./port.sh -p all                            # 同时生成 rpm 和 deb
+#   ./port.sh -p rpm                            # 仅生成 rpm
+#   ./port.sh -p deb                            # 仅生成 deb
+#   ./port.sh <*.exe> [<*.deb>] [-p rpm|deb|all]
 #
 # 依赖: 7z, ar, tar, node (npx), rpmbuild (打 rpm 时)
 #        无需任何外部脚本，登录修复已内置

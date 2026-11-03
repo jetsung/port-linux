@@ -13,14 +13,29 @@
 
 若访问未在清单中的域名或链接失败（如超时、连接被重置），可先按上述方式将该域名加入清单并加前缀 `https://filetas.asfd.cn` 后，重新抓取尝试。
 
-# 移植脚本编写约束（port-*.sh）
+# 移植脚本编写约束（port.sh）
 
-本仓库各移植脚本（`deveco-studio/`、`mimo-desktop/`、`workbuddy/` 等）统一遵循以下约束，新增脚本时同样适用：
+本仓库各移植脚本（`deveco-studio/`、`mimo-desktop/`、`workbuddy/` 等）统一命名为所在目录下的 `port.sh`，并统一遵循以下约束，新增脚本时同样适用：
 
 ## 0. Docker 运行环境
 
 - 移植过程不再依赖宿主环境，统一在 Docker 容器内执行，基础镜像为 `debian:13`。
-- 若 `IS_CHINA=1`（中国网络环境），启动容器后必须先将 `debian:13` 的 apt 镜像源替换为清华大学源，再执行 `apt` 相关操作：
+- 仓库根目录提供统一基础环境镜像 `Dockerfile`（合并各移植项目的前置依赖，预配置中国镜像源：apt 清华 TUNA、npm/bun 走 npmmirror、pip 走清华 PyPI；`WORKDIR /src`），优先使用：
+
+```bash
+docker build -t port-linux-base .
+# 非中国网络环境：docker build --build-arg IS_CHINA=0 -t port-linux-base .
+```
+
+- 运行时在 `port.sh` 脚本及移植包所在路径下执行，将该目录挂载为 `/src`（镜像已设 `WORKDIR /src`，无需再传 `-w`）：
+
+```bash
+cd <项目目录>   # 例如 workbuddy/，目录内含 port.sh 与移植包
+docker run --rm -it -v "$PWD":/src port-linux-base bash          # 交互式
+docker run --rm -v "$PWD":/src port-linux-base ./port.sh -p deb  # 一键构建
+```
+
+- 直接使用 `debian:13` 时，若 `IS_CHINA=1`（中国网络环境），启动容器后必须先将 apt 镜像源替换为清华大学源，再执行 `apt` 相关操作：
 
 ```bash
 sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
@@ -67,7 +82,7 @@ fi
 
 ## 4. workbuddy 移植构建前置依赖（debian:13）
 
-`workbuddy/port-workbuddy.sh` 在 `debian:13` 容器内构建（基底 deb + macOS x64 zip 源 → 产物 deb）时，需安装以下前置依赖：
+`workbuddy/port.sh` 在 `debian:13` 容器内构建（基底 deb + macOS x64 zip 源 → 产物 deb）时，需安装以下前置依赖：
 
 ```bash
 sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources

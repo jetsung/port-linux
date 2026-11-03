@@ -37,7 +37,7 @@
   <!-- ============ debian:13 容器（虚线分组，底层） ============ -->
   <!-- Container: x=130, y=152, w=460, bottom=615; title y=166; note right-aligned x=580 -->
   <rect x="130" y="152" width="460" height="463" rx="10" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="6,4"/>
-  <text x="140" y="166" font-size="11" fill="#64748b">port-workbuddy.sh · debian:13 容器</text>
+  <text x="140" y="166" font-size="11" fill="#64748b">port.sh · debian:13 容器</text>
   <text x="580" y="166" font-size="10" fill="#94a3b8" text-anchor="end">IS_CHINA=1: 清华 apt 源 · npmmirror · CDN 加速</text>
 
   <!-- 连接：输入 → 脚本条（脚本条 top=176） -->
@@ -50,7 +50,7 @@
 
   <!-- 脚本条: x=190, y=176, w=340, h=22, center=360, bottom=198 -->
   <rect x="190" y="176" width="340" height="22" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
-  <text x="360" y="191" font-size="11" fill="#64748b" text-anchor="middle">port-workbuddy.sh  — 基底合并</text>
+  <text x="360" y="191" font-size="11" fill="#64748b" text-anchor="middle">port.sh  — 基底合并</text>
 
   <!-- ============ 处理步骤（容器内，垂直主干 center=360） ============ -->
 

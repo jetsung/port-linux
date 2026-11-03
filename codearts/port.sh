@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# port-codearts.sh — 将华为 CodeArts 桌面智能体移植到 Linux（deb / rpm）
+# port.sh — 将华为 CodeArts 桌面智能体移植到 Linux（deb / rpm）
 #
 # 上游仅提供 macOS(arm64 zip) / Windows(x64 NSIS exe)，无 Linux 版。
 # 应用为 Electron 39.3.0 架构：平台无关的 app.asar + 平台绑定的 sidecar
@@ -10,24 +10,24 @@
 # 注意：agent-kernel / officecli 无 linux-x64 上游产物，智能体功能受限（详见 README）。
 #
 # 用法:
-#   ./port-codearts.sh                        # 自动探测当前目录源包，按当前 OS 打包
-#   ./port-codearts.sh -p all                 # 同时打 deb 和 rpm
-#   ./port-codearts.sh -p deb CodeArts-0.1.26-arm64.zip
+#   ./port.sh                        # 自动探测当前目录源包，按当前 OS 打包
+#   ./port.sh -p all                 # 同时打 deb 和 rpm
+#   ./port.sh -p deb CodeArts-0.1.26-arm64.zip
 #
 # 依赖: unzip, tar, node, npx, curl/wget, python3; 打 deb 需 dpkg-deb（缺失时降级用 binutils ar + xz）; 打 rpm 需 rpmbuild
 
 usage() {
   cat <<'EOF'
-port-codearts.sh — 将华为 CodeArts 桌面智能体移植到 Linux（deb / rpm）
+port.sh — 将华为 CodeArts 桌面智能体移植到 Linux（deb / rpm）
 
 上游仅提供 macOS(arm64 zip) / Windows(x64 exe)，无 Linux 版。
 从 mac zip 提取平台无关的 app.asar 并解压，替换平台原生 node 模块为
 Linux 构建，用 Electron linux-x64 runtime 启动，重打包为 deb / rpm。
 
 用法:
-  ./port-codearts.sh                        # 自动探测当前目录源包，按当前 OS 打包
-  ./port-codearts.sh -p all                 # 同时打 deb 和 rpm
-  ./port-codearts.sh -p deb CodeArts-0.1.26-arm64.zip
+  ./port.sh                        # 自动探测当前目录源包，按当前 OS 打包
+  ./port.sh -p all                 # 同时打 deb 和 rpm
+  ./port.sh -p deb CodeArts-0.1.26-arm64.zip
 
 选项:
   -p, --platform rpm|deb|all   构建目标；省略时按当前 OS 自动检测

@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="880" viewBox="0 0 980 880" font-family="'Noto Sans CJK SC','Source Han Sans SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .box{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5;rx:10}
+      .step{fill:#f8fafc;stroke:#94a3b8}
+      .accent{fill:#ecfeff;stroke:#0891b2}
+      .warn{fill:#fefce8;stroke:#ca8a04}
+      .out{fill:#f0fdf4;stroke:#16a34a}
+      .t{font-size:15px;fill:#0f172a;font-weight:600}
+      .s{font-size:12.5px;fill:#475569}
+      .m{font-size:11.5px;fill:#64748b}
+      .h{font-size:21px;fill:#0f172a;font-weight:700}
+      .n{font-size:11px;fill:#0891b2;font-weight:700}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="980" height="880" fill="#ffffff"/>
+  <text x="40" y="46" class="h">DeepSeek Harness — macOS / Windows → Linux x64 移植流程</text>
+  <text x="40" y="70" class="m">port.sh · Electron 44.7.0 · 0.2.1-rc.5</text>
+
+  <!-- 步骤 1 -->
+  <rect x="40" y="100" width="320" height="66" class="box step"/>
+  <text x="58" y="126" class="t">1 · 源安装包</text>
+  <text x="58" y="147" class="s">dsh-latest-macos-arm64.dmg（唯一源）</text>
+  <text x="58" y="163" class="m">拒绝 .exe 与 macOS x64 DMG</text>
+
+  <!-- 步骤 2 -->
+  <rect x="40" y="196" width="320" height="66" class="box step"/>
+  <text x="58" y="222" class="t">2 · 7z 解包</text>
+  <text x="58" y="243" class="s">DMG → *.app/Contents/Resources</text>
+  <text x="58" y="259" class="m">校验 runtime.json：platform=darwin · arch=arm64</text>
+
+  <!-- 步骤 3 -->
+  <rect x="40" y="292" width="320" height="66" class="box step"/>
+  <text x="58" y="318" class="t">3 · asar 解压为目录</text>
+  <text x="58" y="339" class="s">app.asar → app/（不重打包）</text>
+  <text x="58" y="355" class="m">合并 app.asar.unpacked</text>
+
+  <!-- 步骤 4 -->
+  <rect x="40" y="388" width="320" height="110" class="box accent"/>
+  <text x="58" y="414" class="t">4 · 平台原生模块替换</text>
+  <text x="58" y="435" class="s">sharp · libvips · koffi · sherpa-onnx</text>
+  <text x="58" y="453" class="s">ripgrep · node-addon-system</text>
+  <text x="58" y="471" class="s">node-addon-require-builtin(-gnu)</text>
+  <text x="58" y="489" class="m">node-pty 本机编译 · LibreOffice → WASM</text>
+
+  <!-- 步骤 5 -->
+  <rect x="40" y="528" width="320" height="110" class="box accent"/>
+  <text x="58" y="554" class="t">5 · primary-runtime 重建</text>
+  <text x="58" y="575" class="s">Node 24.21.0 · pnpm 11.28.5</text>
+  <text x="58" y="593" class="s">CPython 3.12 + 13 个 wheels</text>
+  <text x="58" y="611" class="m">重写 runtime.json（platform/arch/digest）</text>
+  <text x="58" y="629" class="m">python / python3 → python3.12 相对链接</text>
+
+  <!-- 步骤 6 -->
+  <rect x="40" y="668" width="320" height="66" class="box step"/>
+  <text x="58" y="694" class="t">6 · Electron linux-x64</text>
+  <text x="58" y="715" class="s">electron-v44.7.0-linux-x64.zip</text>
+  <text x="58" y="731" class="m">chrome-sandbox 权限处理</text>
+
+  <!-- 步骤 7 -->
+  <rect x="40" y="764" width="320" height="66" class="box out"/>
+  <text x="58" y="790" class="t">7 · 组装 + 打包</text>
+  <text x="58" y="811" class="s">resources/{app,runtime} + .desktop + 图标</text>
+  <text x="58" y="827" class="m">deepseek-harness_&lt;ver&gt;_amd64.deb</text>
+
+  <!-- 主流程箭头 -->
+  <g stroke="#64748b" stroke-width="1.6" fill="none" marker-end="url(#arrow)">
+    <path d="M200,166 L200,196"/>
+    <path d="M200,262 L200,292"/>
+    <path d="M200,358 L200,388"/>
+    <path d="M200,498 L200,528"/>
+    <path d="M200,638 L200,668"/>
+    <path d="M200,734 L200,764"/>
+  </g>
+
+  <!-- 右侧说明 -->
+  <rect x="410" y="100" width="530" height="126" class="box"/>
+  <text x="428" y="126" class="t">输入层</text>
+  <text x="428" y="150" class="s">• 版本取自应用内 package.json（回退 Info.plist）</text>
+  <text x="428" y="171" class="s">• app.asar 为平台无关 JS（182 MB，308 个 @deepseek-ai 包）</text>
+  <text x="428" y="192" class="s">• darwin-arm64 平台包共 9 类，全部需替换</text>
+  <text x="428" y="213" class="m">• 文件名不含版本，必须从包内提取</text>
+
+  <rect x="410" y="252" width="530" height="150" class="box accent"/>
+  <text x="428" y="278" class="t">运行方式：解压目录，不重打包 asar</text>
+  <text x="428" y="302" class="s">• 原生模块必须落在 asar 之外</text>
+  <text x="428" y="323" class="s">• Linux 不读取 macOS 的 ElectronAsarIntegrity</text>
+  <text x="428" y="344" class="s">• app.getAppPath()/dsh 在目录模式下同样成立</text>
+  <text x="428" y="368" class="m">主进程用 process.resourcesPath 定位 runtime，</text>
+  <text x="428" y="388" class="m">因此 app 与 runtime 都放入 electron/resources/</text>
+
+  <rect x="410" y="428" width="530" height="210" class="box warn"/>
+  <text x="428" y="454" class="t">替换与降级</text>
+  <text x="428" y="478" class="s">• 逐包下载 tgz，校验 name/version 后落盘（不跑 npm install）</text>
+  <text x="428" y="499" class="s">• node-pty 用 N-API 本机编译，失败仅告警（终端降级）</text>
+  <text x="428" y="520" class="s">• LibreOffice 在 Linux 官方即走 WASM，无原生引擎</text>
+  <text x="428" y="541" class="s">• Python 版本表以实际安装为准回写 runtime.json</text>
+  <text x="428" y="562" class="s">• payloadDigest 重算（上游只校验格式）</text>
+  <text x="428" y="583" class="m">• 移除 app-update.yml，禁用 Linux 不可用的自动更新</text>
+  <text x="428" y="604" class="m">• 构建结束输出降级摘要</text>
+
+  <rect x="410" y="664" width="530" height="88" class="box out"/>
+  <text x="428" y="690" class="t">产物布局</text>
+  <text x="428" y="712" class="s">/opt/deepseek-harness/electron/resources/{app,runtime,icon.png,tray.ico}</text>
+  <text x="428" y="733" class="s">/usr/bin/deepseek-harness · /usr/share/applications/deepseek-harness.desktop</text>
+
+  <rect x="410" y="778" width="530" height="52" class="box"/>
+  <text x="428" y="802" class="t">已知限制</text>
+  <text x="428" y="821" class="m">WASM 转换较慢 · desktopPlatform 为 null · 仅 x86_64 · 无自动更新</text>
+</svg>

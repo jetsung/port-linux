@@ -1,4 +1,4 @@
-# WorkBuddy — 跨平台移植脚本（port-workbuddy.sh）
+# WorkBuddy — 跨平台移植脚本（port.sh）
 
 > 将腾讯 WorkBuddy 的 macOS 新版移植到 Linux，重新打包为 **deb / rpm**。
 > 参考 AUR [`workbuddy`](https://aur.archlinux.org/packages/workbuddy) 配方与
@@ -14,7 +14,7 @@ Electron 运行时与 Linux 原生模块，将依赖平台的 `better-sqlite3`�
 
 ## 移植原理
 
-`port-workbuddy.sh` 自包含全部逻辑，共 6 步：
+`port.sh` 自包含全部逻辑，共 6 步：
 
 ![WorkBuddy 跨平台移植流程](assets/port-flow.svg)
 
@@ -67,7 +67,7 @@ docker run --rm \
     sed -i "s|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g" /etc/apt/sources.list.d/debian.sources
     apt-get update -qq
     apt-get install -y -qq --no-install-recommends ca-certificates curl unzip file nodejs npm
-    ./port-workbuddy.sh -p deb
+    ./port.sh -p deb
   '
 ```
 
@@ -80,20 +80,20 @@ docker run --rm \
 ```bash
 # 最简：自动探测当前目录的 WorkBuddy-darwin-x64-*.zip 与
 # WorkBuddy-linux-x64-deb-*.deb（缺失时回退 *-rpm-*.rpm），按当前 OS 打包
-./port-workbuddy.sh
+./port.sh
 
 # 同时生成 deb 和 rpm（需 rpmbuild）
-./port-workbuddy.sh -p all
+./port.sh -p all
 
 # 显式指定源 zip 与基底 deb
-./port-workbuddy.sh -p deb -b WorkBuddy-linux-x64-deb-5.6.2.40046327-c7b525f3.deb \
+./port.sh -p deb -b WorkBuddy-linux-x64-deb-5.6.2.40046327-c7b525f3.deb \
   WorkBuddy-darwin-x64-5.8.3.41334564-db0e9b51.zip
 
 # 从 URL 下载源（文件名须含版本号）
-./port-workbuddy.sh -s "https://download.codebuddy.cn/.../WorkBuddy-darwin-x64-5.8.3.41334564-db0e9b51.zip"
+./port.sh -s "https://download.codebuddy.cn/.../WorkBuddy-darwin-x64-5.8.3.41334564-db0e9b51.zip"
 
 # 覆盖 Electron 版本（未使用，基底已含运行时，仅作信息）
-./port-workbuddy.sh -e 37.10.3
+./port.sh -e 37.10.3
 ```
 
 ### 参数

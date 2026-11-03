@@ -12,7 +12,7 @@
 #           间接调用，shellcheck 静态分析无法追踪，属误报。
 
 #============================================================
-# File: port-devecostudio.sh
+# File: port.sh
 # Description: 构建跨发行版、解压即用的 DevEco Studio 通用 tarball
 # URL: https://fx4.cn/devecobuild
 # Author: Jetsung Chan <i@jetsung.com>
@@ -21,7 +21,7 @@
 # UpdatedAt: 2026-08-16
 #============================================================
 
-# port-devecostudio.sh — 构建跨发行版、解压即用的 DevEco Studio 通用 tarball。
+# port.sh — 构建跨发行版、解压即用的 DevEco Studio 通用 tarball。
 #
 # 产出自包含的
 # devecostudio-<ver>-linux-x86_64.tar.gz（解压到任意位置即可运行），或经
@@ -97,7 +97,7 @@ idea-*.tar.gz），按文件名 glob 自行判断。Mac 源的文件名/地址�
 用 --install DIR 则直接安装到指定文件夹（本地使用免打包，可加 --no-package 跳过 tar.gz）。
 
 用法：
-  port-devecostudio.sh -m MAC [-c CLI] [-i IDEA] [-v PKGVER] [-a IDEAVER]
+  port.sh -m MAC [-c CLI] [-i IDEA] [-v PKGVER] [-a IDEAVER]
                           [-x] [-n] [-I DIR] [-P] [--clear-all]
 
   -m, --mac MAC           Mac 源：本地路径（devecostudio-mac-<ver>.zip）或以 http(s):// 开头的下载地址
@@ -429,7 +429,7 @@ audit_idea_consistency() {
   fi
 }
 
-# 从原始 .dmg 读出 Mac 自带 JBR 的版本（port-devecostudio.sh 解压 Mac 时已排除 jbr，
+# 从原始 .dmg 读出 Mac 自带 JBR 的版本（port.sh 解压 Mac 时已排除 jbr，
 # 故需临时从 build/work/mac_zip 下的 dmg 中提取 release 文件）。
 # 输出 "JAVA_VERSION / IMPLEMENTOR_VERSION" 或空串。
 dump_mac_jbr_version() {
@@ -1176,7 +1176,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# 自动探测：未显式指定的源在当前目录按文件名 glob 查找（参考 port-mimo.sh 风格）
+# 自动探测：未显式指定的源在当前目录按文件名 glob 查找（参考 mimo-desktop 移植脚本风格）
 CWD="$(pwd -P)"
 if [[ -z "$MAC" ]]; then
   for f in "$CWD"/devecostudio-mac-*.zip; do

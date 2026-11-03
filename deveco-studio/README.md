@@ -1,11 +1,11 @@
-# DevEco Studio — 通用发行版构建脚本（port-devecostudio.sh）
+# DevEco Studio — 通用发行版构建脚本（port.sh）
 
 > 跨发行版、解压即用的 DevEco Studio 通用 tarball 构建器。
 > 基于华为 Mac DMG + Linux 命令行工具 + IntelliJ IDEA 的 Linux 组件重新组合。
 >
 > 本案例是 [port-linux](../README.md) 移植工具集收录的移植方案之一。
 
-`port-devecostudio.sh` 把三个上游源重新组合成一个**解压即用**的目录树（类似
+`port.sh` 把三个上游源重新组合成一个**解压即用**的目录树（类似
 `idea-*.tar.gz` / `android-studio-*.tar.gz`）：
 
 ![DevEco Studio 通用发行版构建流程](assets/port-flow.svg)
@@ -48,7 +48,7 @@ IntelliJ IDEA release 的 `build` 字段（→ `2026.1.1`）。脚本据此：
 下个月 `2026.1.6` 发布时会自动取用——**除非你用 `-a` 显式覆盖**：
 
 ```bash
-./port-devecostudio.sh --mac ... --cli ... --ideaver 2026.1.5   # 可选覆盖，跳过自动探测
+./port.sh --mac ... --cli ... --ideaver 2026.1.5   # 可选覆盖，跳过自动探测
 ```
 
 构建时脚本会回显 **组件版本对照表**（DevEco 版本 / IDEA 构建号 / JBR 版本
@@ -69,9 +69,9 @@ build/
 
 - 中间产物**默认保留**：第二次用本地包构建时直接复用 `build/work/` 与
   `build/cache/`，不再解压、不再下载，省时省资源。
-- 想强制重新解压/下载：`./port-devecostudio.sh --clear-all` 清除 `build/work/` 与
+- 想强制重新解压/下载：`./port.sh --clear-all` 清除 `build/work/` 与
   `build/cache/` 后退出（最终产物 `build/out/` 保留）。
-- 仅清除整合包（保留解压源与下载缓存）：`./port-devecostudio.sh --clear-build`。
+- 仅清除整合包（保留解压源与下载缓存）：`./port.sh --clear-build`。
 
 ## 用法
 
@@ -93,7 +93,7 @@ build/
 ```bash
 # 当前目录有 devecostudio-mac-26.0.0.621.zip、commandline-tools-linux-x64-26.0.0.621.zip
 # （idea-*.tar.gz 可省略，由脚本自动解析下载）
-./port-devecostudio.sh
+./port.sh
 ```
 
 显式指定的源优先于自动探测；两者可混用（如只显式传 `--mac`，CLI/IDEA 仍自动探测）。
@@ -103,7 +103,7 @@ build/
 
 ```bash
 # 显式指定三个本地包
-./port-devecostudio.sh \
+./port.sh \
     --mac  devecostudio-mac.zip \
     --cli  commandline-tools-linux-x64.zip \
     --idea idea-2026.1.5.tar.gz
@@ -121,7 +121,7 @@ build/
 JetBrains CDN 拼出下载地址：
 
 ```bash
-./port-devecostudio.sh \
+./port.sh \
     --mac  "https://.../devecostudio-mac-26.0.0.621.zip" \
     --cli  "https://.../commandline-tools-linux-x64-26.0.0.621.zip"
 ```
@@ -157,7 +157,7 @@ tar -xzf devecostudio-<pkgver>-linux-x86_64.tar.gz -C ~/apps
 
 ```bash
 # 只想本地用，不打包（最快）：组装后直接装到 ~/apps/devecostudio
-./port-devecostudio.sh --mac devecostudio-mac.zip \
+./port.sh --mac devecostudio-mac.zip \
     --cli commandline-tools-linux-x64.zip \
     --install ~/apps/devecostudio --no-package
 
@@ -178,7 +178,7 @@ tar -xzf devecostudio-<pkgver>-linux-x86_64.tar.gz -C ~/apps
 若你希望把它们暴露到 PATH，加 `--expose-cli`：
 
 ```bash
-./port-devecostudio.sh --mac ... --cli ... --expose-cli
+./port.sh --mac ... --cli ... --expose-cli
 ```
 
 这会额外在 `build/out/` 生成一个 `install-cli-tools.sh`，运行（需 root）后把工具
@@ -210,7 +210,7 @@ tar -xzf devecostudio-<pkgver>-linux-x86_64.tar.gz -C ~/apps
 
 ## 模拟器运行注意事项（Linux 特有问题，已打包层处理）
 
-DevEco 的模拟器在 Linux 上有几个上游怪癖，`port-devecostudio.sh` 已在启动器
+DevEco 的模拟器在 Linux 上有几个上游怪癖，`port.sh` 已在启动器
 `bin/devecostudio.sh` 与权限修复中处理，这里记录以便维护时理解。
 
 ### 1. Emulator 二进制需要执行权限

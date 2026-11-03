@@ -1,4 +1,4 @@
-# CodeArts — 跨平台移植脚本（port-codearts.sh）
+# CodeArts — 跨平台移植脚本（port.sh）
 
 > 将华为云 CodeArts 桌面端移植到 Linux，重新打包为 **deb / rpm**。
 > 上游仅提供 macOS (arm64 zip) / Windows (x64 NSIS exe)，无 Linux 版。
@@ -19,7 +19,7 @@
 
 ## 移植原理
 
-`port-codearts.sh` 自包含全部逻辑，自动完成从 macOS 源包到 deb/rpm 的全流程
+`port.sh` 自包含全部逻辑，自动完成从 macOS 源包到 deb/rpm 的全流程
 （共 7 步：获取源 → 解压 asar → 替换原生模块 → sidecar 处理 → 下载 Electron → 组装 → 打包）：
 
 ![CodeArts 跨平台移植流程](assets/port-flow.svg)
@@ -69,25 +69,25 @@ codearts-agent-linux-x64-*.deb 内 agentkernelServer-linux-x64 (可选，需 -k)
 
 ```bash
 # 最简：自动探测当前目录 CodeArts-*.zip，按当前 OS 打包
-./port-codearts.sh
+./port.sh
 
 # 同时生成 deb 和 rpm
-./port-codearts.sh -p all
+./port.sh -p all
 
 # 显式指定源 zip
-./port-codearts.sh -p deb CodeArts-0.2.3-arm64.zip
-./port-codearts.sh -s ./CodeArts-0.2.3-arm64.zip
+./port.sh -p deb CodeArts-0.2.3-arm64.zip
+./port.sh -s ./CodeArts-0.2.3-arm64.zip
 
 # 指定 Linux agent-kernel 来源（否则聊天功能不可用）
-./port-codearts.sh -k ./codearts-agent-linux-x64-1.2.3.deb
-./port-codearts.sh -k https://example.com/codearts-agent-linux-x64.deb
-./port-codearts.sh -k /path/to/agentkernelServer-linux-x64
+./port.sh -k ./codearts-agent-linux-x64-1.2.3.deb
+./port.sh -k https://example.com/codearts-agent-linux-x64.deb
+./port.sh -k /path/to/agentkernelServer-linux-x64
 
 # 覆盖 Electron 版本（默认 39.3.0，与 CodeArts 内置 Electron Framework 对齐）
-./port-codearts.sh -e 39.3.0
+./port.sh -e 39.3.0
 
 # 查看帮助
-./port-codearts.sh -h
+./port.sh -h
 ```
 
 ### 参数

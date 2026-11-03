@@ -16,6 +16,7 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
 | [`deveco-studio/`](deveco-studio/) | DevEco Studio（HarmonyOS IDE） | Mac DMG + Linux CLI 工具 + IntelliJ IDEA Linux 组件重组，IDEA 基线自动解析 | 跨发行版 tar.gz | [README](deveco-studio/README.md) |
 | [`workbuddy/`](workbuddy/) | 腾讯 WorkBuddy（AI Agent 办公工具） | 基底合并：官方 Linux deb 为基底（rpm 兼容），合并 macOS 新版 zip 的 app.asar，复用基底 Electron runtime 与 Linux 原生模块 | deb / rpm | [README](workbuddy/README.md) |
 | [`codearts/`](codearts/) | 华为云 CodeArts 桌面智能体 | macOS zip 解压 app.asar + Electron Linux runtime；agent-kernel 从 CodeArts IDE Linux deb 提取并经 wrapper 协议转接 | deb / rpm (x64) | [README](codearts/README.md) |
+| [`deepseek-harness/`](deepseek-harness/) | DeepSeek Harness（DeepSeek 桌面智能体） | macOS DMG / Windows exe 三层移植：app.asar 解压目录运行 + 8 类原生包替换（LibreOffice 走 WASM）+ 自建 primary-runtime（Node / pnpm / CPython + wheels） | deb (x64) / rpm | [README](deepseek-harness/README.md) |
 
 > **⚠️ 状态说明**：`codearts/` 的智能体功能依赖华为的 agent-kernel 原生二进制。
 > 桌面端上游无 Linux 构建，但可从 CodeArts IDE 的官方 Linux deb
@@ -31,18 +32,35 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
 
 ```
 <app>/
-├── port-<app>.sh    # 一键移植脚本（自包含全部逻辑）
+├── port.sh          # 一键移植脚本（自包含全部逻辑，统一命名）
 ├── README.md        # 移植原理、用法、产物说明
 └── assets/          # 流程图等资源（可选）
 ```
 
 大型源安装包（`.deb` / `.rpm` / `.exe` / `.zip` / `.dmg`）不纳入版本控制，由使用者按各案例 README 自行下载。
 
-## 通用依赖
+## Docker 统一构建
 
-> 移植过程统一在 Docker 容器内执行（基础镜像 `debian:13`，中国网络环境先替换 apt
-> 源为清华大学源），不依赖宿主环境。各案例在容器内需安装的前置依赖清单见
-> [`AGENTS.md`](AGENTS.md)，容器内一键构建命令见各案例 README 的「构建」一节。
+仓库根目录提供统一基础环境镜像 [`Dockerfile`](Dockerfile)（基座 `debian:13`，
+预装各案例的全部前置依赖，并预配置中国镜像源：apt 清华 TUNA、npm/bun 走
+npmmirror、pip 走清华 PyPI；`WORKDIR /src`）。所有案例用法一致：
+
+```bash
+docker build -t port-linux-base .
+# 非中国网络环境：docker build --build-arg IS_CHINA=0 -t port-linux-base .
+
+# 在 port.sh 脚本及移植包所在路径下执行
+cd workbuddy   # 或 mimo-desktop / deepseek-harness / codearts / deveco-studio
+docker run --rm -v "$PWD":/src port-linux-base ./port.sh -p deb
+```
+
+产物 deb/rpm 落在各案例目录内（如 `workbuddy/build/`），经 `-v "$PWD":/src` 直接回写宿主机。
+
+## 本地直跑依赖
+
+> 移植过程统一在 Docker 容器内执行（优先使用上述 `port-linux-base` 基础镜像），
+> 不依赖宿主环境。各案例前置依赖清单见 [`AGENTS.md`](AGENTS.md)，
+> 容器内一键构建命令见各案例 README 的「构建」一节。
 
 本地直跑时，各案例脚本大同小异，通常需要（按案例取舍）：
 

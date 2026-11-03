@@ -6,6 +6,7 @@
 **/*.log
 
 **/*.zip
+**/*.dmg
 **/*.tar.gz
 **/*.tar.xz
 
