@@ -18,12 +18,6 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
 | [`codearts/`](codearts/) | 华为云 CodeArts 桌面智能体 | macOS zip 解压 app.asar + Electron Linux runtime；agent-kernel 从 CodeArts IDE Linux deb 提取并经 wrapper 协议转接 | deb / rpm (x64) | [README](codearts/README.md) |
 | [`deepseek-harness/`](deepseek-harness/) | DeepSeek Harness（DeepSeek 桌面智能体） | macOS DMG / Windows exe 三层移植：app.asar 解压目录运行 + 8 类原生包替换（LibreOffice 走 WASM）+ 自建 primary-runtime（Node / pnpm / CPython + wheels） | deb (x64) / rpm | [README](deepseek-harness/README.md) |
 
-> **⚠️ 状态说明**：`codearts/` 的智能体功能依赖华为的 agent-kernel 原生二进制。
-> 桌面端上游无 Linux 构建，但可从 CodeArts IDE 的官方 Linux deb
-> （`codearts-agent-linux-x64-*.deb`，内含 `agentkernelServer-linux-x64`）中提取，
-> 经脚本 `-k` 指定后随移植包安装；缺失时仅界面可用、聊天功能不可用。
-> officecli 等部分原生 sidecar 仍无 linux-x64 产物。详见该 README 的「已知限制」。
-
 各案例 README 均配有 SVG 移植流程图（`assets/port-flow.svg`），可先看图了解整体移植思路。
 
 ## 目录约定
@@ -34,7 +28,8 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
 <app>/
 ├── port.sh          # 一键移植脚本（自包含全部逻辑，统一命名）
 ├── README.md        # 移植原理、用法、产物说明
-└── assets/          # 流程图等资源（可选）
+└── assets/
+    └── port-flow.svg  # 移植流程图（统一命名，使用 svg-diagram skill 生成）
 ```
 
 大型源安装包（`.deb` / `.rpm` / `.exe` / `.zip` / `.dmg`）不纳入版本控制，由使用者按各案例 README 自行下载。

@@ -17,6 +17,23 @@
 
 本仓库各移植脚本（`deveco-studio/`、`mimo-desktop/`、`workbuddy/` 等）统一命名为所在目录下的 `port.sh`，并统一遵循以下约束，新增脚本时同样适用：
 
+## 案例子目录结构
+
+每个案例子目录建议包含：
+
+```
+<app>/
+├── port.sh          # 一键移植脚本（自包含全部逻辑，统一命名）
+├── README.md        # 移植原理、用法、产物说明
+└── assets/
+    └── port-flow.svg  # 移植流程图（统一命名）
+```
+
+- 移植流程图统一放在所在案例的 `assets/port-flow.svg`（如 `workbuddy/assets/port-flow.svg`），README 中引用该文件。
+- 生成或修改 `port-flow.svg` 时，必须使用 `svg-diagram` skill（技能）来绘制 SVG 流程图，保持全仓库图形风格一致。
+
+以方便下次创建新的软件移植。
+
 ## 0. Docker 运行环境
 
 - 移植过程不再依赖宿主环境，统一在 Docker 容器内执行，基础镜像为 `debian:13`。

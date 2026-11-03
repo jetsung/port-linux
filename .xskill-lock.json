@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "svg-diagram": {
+      "source": "https://github.com/bybit-exchange/svg-diagram",
+      "source_type": "git",
+      "source_url": "https://github.com/bybit-exchange/svg-diagram",
+      "skill_path": "SKILL.md",
+      "skill_folder_hash": "3653d528f0ea93c75258fef68a25cc0ec19fbfb7",
+      "installed_at": "2026-11-03T12:41:36.287Z",
+      "updated_at": "2026-11-03T12:41:36.287Z"
+    }
+  },
+  "updated_at": ""
+}
