@@ -17,6 +17,7 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
 | [`workbuddy/`](workbuddy/) | 腾讯 WorkBuddy（AI Agent 办公工具） | 基底合并：官方 Linux deb 为基底（rpm 兼容），合并 macOS 新版 zip 的 app.asar，复用基底 Electron runtime 与 Linux 原生模块 | deb / rpm | [README](workbuddy/README.md) |
 | [`codearts/`](codearts/) | 华为云 CodeArts 桌面智能体 | macOS zip 解压 app.asar + Electron Linux runtime；agent-kernel 从 CodeArts IDE Linux deb 提取并经 wrapper 协议转接 | deb / rpm (x64) | [README](codearts/README.md) |
 | [`deepseek-harness/`](deepseek-harness/) | DeepSeek Harness（DeepSeek 桌面智能体） | macOS DMG / Windows exe 三层移植：app.asar 解压目录运行 + 8 类原生包替换（LibreOffice 走 WASM）+ 自建 primary-runtime（Node / pnpm / CPython + wheels） | deb (x64) / rpm | [README](deepseek-harness/README.md) |
+| [`open-design/`](open-design/) | Open Design（本地优先设计工作台） | Windows NSIS 双层 payload 提取官方发布态业务载荷 + 自建 Electron 41.3.0 linux-x64 运行时，原生模块按 Electron headers 重编译 | deb / rpm (x64) | [README](open-design/README.md) |
 
 各案例 README 均配有 SVG 移植流程图（`assets/port-flow.svg`），可先看图了解整体移植思路。
 
@@ -32,7 +33,7 @@ Linux 跨平台移植工具集 —— 收集将其他平台（主要是 Windows/
     └── port-flow.svg  # 移植流程图（统一命名，使用 svg-diagram skill 生成）
 ```
 
-大型源安装包（`.deb` / `.rpm` / `.exe` / `.zip` / `.dmg`）不纳入版本控制，由使用者按各案例 README 自行下载。
+大型源安装包（`.deb` / `.rpm` / `.exe` / `.zip` / `.dmg` / `.AppImage`）不纳入版本控制，由使用者按各案例 README 自行下载。
 
 ## Docker 统一构建
 
@@ -45,7 +46,7 @@ docker build -t port-linux-base .
 # 非中国网络环境：docker build --build-arg IS_CHINA=0 -t port-linux-base .
 
 # 在 port.sh 脚本及移植包所在路径下执行
-cd workbuddy   # 或 mimo-desktop / deepseek-harness / codearts / deveco-studio
+cd workbuddy   # 或 mimo-desktop / deepseek-harness / codearts / deveco-studio / open-design
 docker run --rm -v "$PWD":/src port-linux-base ./port.sh -p deb
 ```
 

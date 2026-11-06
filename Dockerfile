@@ -1,7 +1,7 @@
 # port-linux 统一基础构建环境
 #
 # 合并各移植项目（codearts / deepseek-harness / deveco-studio / mimo-desktop /
-# workbuddy）在 debian:13 容器内的前置依赖，并预配置中国镜像源：
+# workbuddy / open-design）在 debian:13 容器内的前置依赖，并预配置中国镜像源：
 #   - apt   → 清华 TUNA
 #   - npm   → npmmirror（同时导出 NPM_CONFIG_REGISTRY 供各脚本继承）
 #   - pip   → 清华 TUNA PyPI
@@ -45,7 +45,8 @@ RUN if [ "$IS_CHINA" = "1" ]; then \
 #   jq                               JSON 处理（README 汇总依赖）
 #   nodejs npm                       npx asar 解包 / npm 包下载（全部项目）
 #   python3 python3-pip              脚本内 JSON / plist 处理（deepseek-harness、codearts）
-#   build-essential                  编译 node-pty 等 native 模块（deepseek-harness）
+#   build-essential                  编译 node-pty / better-sqlite3 等 native 模块（deepseek-harness、open-design）
+#   7zip / binutils(strings) / file  open-design：解 NSIS 双层 payload、从 PE 探测 Electron 版本、判 PE 残留
 #   dpkg-deb（dpkg-dev）             解 deb 基底与打 deb 产物（workbuddy、mimo）
 #   rpm cpio                         rpm2cpio 解 rpm 基底；容器内无法打 rpm（rpmbuild 缺失，脚本自动跳过）
 

@@ -15,7 +15,7 @@
 
 # 移植脚本编写约束（port.sh）
 
-本仓库各移植脚本（`deveco-studio/`、`mimo-desktop/`、`workbuddy/` 等）统一命名为所在目录下的 `port.sh`，并统一遵循以下约束，新增脚本时同样适用：
+本仓库各移植脚本（`deveco-studio/`、`mimo-desktop/`、`workbuddy/`、`open-design/` 等）统一命名为所在目录下的 `port.sh`，并统一遵循以下约束，新增脚本时同样适用：
 
 ## 案例子目录结构
 
@@ -119,3 +119,38 @@ apt-get install -y --no-install-recommends ca-certificates curl unzip file nodej
 - 打 rpm 产物需 `rpmbuild`，Debian 仓库不提供；容器内构建时脚本自动跳过 rpm，仅产出 deb
 - npm 下载 sandbox / node-pty 等包走镜像加速：挂载宿主 `~/.npmrc`（`-v ~/.npmrc:/root/.npmrc:ro`）或设置 `NPM_CONFIG_USERCONFIG`，脚本自动读取其中的 registry
 
+## 5. open-design 移植构建前置依赖（debian:13）
+
+`open-design/port.sh` 在 `debian:13` 容器内构建（Windows x64 NSIS exe 单源 →
+产物 deb / rpm）。基础镜像 [`Dockerfile`](Dockerfile) 已预装全部依赖：
+
+```bash
+apt-get install -y --no-install-recommends \
+    7zip unzip tar binutils file nodejs npm python3 build-essential dpkg-dev \
+    ca-certificates curl rpm cpio
+```
+
+| 依赖 | 用途 |
+| --- | --- |
+| `7zip` | 解 NSIS 双层 payload（`payload-base.7z` / `payload-overlay.7z`） |
+| `binutils`（`strings`） | 从 Windows PE 探测 Electron 版本，避免版本硬编码 |
+| `file` | 识别 PE / ELF，校验组装后无 Windows 残留 |
+| `nodejs` + `npm` | 提供 `npx`，运行 `node-gyp` 编译原生模块 |
+| `python3` | 解析 `package.json` / `optionalDependencies`、生成占位图标 |
+| `build-essential` | `g++` / `make`，编译 `better-sqlite3` / `node-pty` |
+| `dpkg-deb`（`dpkg-dev`） | 打 deb；缺失时降级 `ar` + `xz` 手工拼装 |
+| `ca-certificates` + `curl` | 下载 Electron runtime / headers / npm 平台包 |
+| `rpm` + `cpio` | 可选 rpm 基底；`rpmbuild` 在 Debian 仓库不提供，脚本自动跳过 rpm |
+
+- 中国网络环境（`IS_CHINA=1`）：GitHub 系下载（Electron runtime）走 CDN 前缀，
+  npm 走 npmmirror 镜像；Electron headers 从 `artifacts.electronjs.org` 直连下载，
+  失败时回退系统 Node headers 并告警。
+- **原生模块必须用 Electron 对应版本的 headers 编译**：系统 Node 20 的
+  `NODE_MODULE_VERSION` 为 115，Electron 41 内置 Node 24 为 145；用系统 headers
+  编译的 `.node` 会在 Electron 里报 ABI 不匹配、导致 daemon 无法启动。
+- Windows 发布态包里的 `better-sqlite3` / `node-pty` 是精简包（无 `binding.gyp` / `src`），
+  需先下载同版本完整 npm 包替换再编译。
+- 构建峰值磁盘约 3G（源包解开约 1.5G + Electron runtime + deb 产物）；案例目录所在分区
+  空间不足时用 `-e BUILD_ROOT=<dir>` 指向有空间的目录（并挂载同名卷）。
+- `-b` 可传入自建 Linux AppImage，只复用其完好的 Linux ELF 运行时、丢弃其业务载荷，
+  可跳过 Electron 下载、npm 平台包替换与原生模块编译。

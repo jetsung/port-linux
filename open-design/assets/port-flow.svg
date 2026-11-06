@@ -1,0 +1,138 @@
+<svg viewBox="0 0 720 900" width="720" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+  </defs>
+
+  <!-- Title: content x=100..620, center=360 -->
+  <text x="360" y="28" font-size="16" font-weight="600" fill="#1e293b" text-anchor="middle">Open Design 跨平台移植流程</text>
+  <text x="360" y="46" font-size="10" fill="#94a3b8" text-anchor="middle">官方 win-x64 setup.exe 单源 → 自建 Electron 41.3.0 linux-x64 运行时 → deb / rpm</text>
+
+  <!-- ============ 输入源（容器外） ============ -->
+  <!-- win exe: x=100, y=64, w=240, h=36, center=220, bottom=100 -->
+  <rect x="100" y="64" width="240" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="220" y="86" font-size="11" fill="#1e40af" text-anchor="middle">win-x64-setup.exe（443M · 官方源）</text>
+
+  <!-- 自动下载: x=380, y=64, w=240, h=36, center=500, bottom=100 -->
+  <rect x="380" y="64" width="240" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="500" y="86" font-size="11" fill="#1e40af" text-anchor="middle">Electron 41.3.0 / npm / headers（下载）</text>
+
+  <!-- 可选基底: x=380, y=108, w=240, h=28, center=500, bottom=136 -->
+  <rect x="380" y="108" width="240" height="28" rx="6" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="6,4"/>
+  <text x="500" y="126" font-size="10" fill="#64748b" text-anchor="middle">可选 -b AppImage 基底（跳过下载与编译）</text>
+
+  <!-- ============ debian:13 容器（虚线分组，底层） ============ -->
+  <!-- Container: x=130, y=152, w=460, h=628, right=590, bottom=780 -->
+  <!-- 容器标题合并进脚本条文字，避免与 x=220/460/500 的输入箭头重叠 -->
+  <rect x="130" y="152" width="460" height="628" rx="10" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="6,4"/>
+
+  <!-- 连接：输入 → 脚本条（脚本条 top=176） -->
+  <!-- 100+5=105 → 176-11=165 -->
+  <path d="M220,105 L 220,165" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <path d="M500,105 L 500,165" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <!-- 可选基底: 136+5=141 → 165，x=460 与右箭头分离 -->
+  <path d="M460,141 L 460,165" fill="none" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- 脚本条: x=190, y=176, w=340, h=22, center=360, bottom=198 -->
+  <rect x="190" y="176" width="340" height="22" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="360" y="191" font-size="11" fill="#64748b" text-anchor="middle">port.sh · debian:13 容器 — 单源分层移植（8 步）</text>
+
+  <!-- ============ 处理步骤（容器内，垂直主干 center=360） ============ -->
+
+  <!-- Step 1: x=160, y=226, w=400, h=36, bottom=262 -->
+  <rect x="160" y="226" width="400" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="176" y="240" font-size="11" fill="#64748b">1</text>
+  <text x="360" y="248" font-size="12" fill="#1e293b" text-anchor="middle">解 NSIS 双层 payload → 官方发布态业务载荷</text>
+  <!-- bar → 1: 198+5=203 → 226-11=215 -->
+  <path d="M360,203 L 360,215" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 2: y=290, h=36, bottom=326 -->
+  <rect x="160" y="290" width="400" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="176" y="304" font-size="11" fill="#64748b">2</text>
+  <text x="360" y="312" font-size="12" fill="#1e293b" text-anchor="middle">探测版本：app 0.27.0 / Electron 41.3.0（从 PE）</text>
+  <!-- 1→2: 262+5=267 → 290-11=279 -->
+  <path d="M360,267 L 360,279" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 3: y=354, h=54（两行）, bottom=408 -->
+  <rect x="160" y="354" width="400" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="176" y="368" font-size="11" fill="#b45309">3</text>
+  <text x="360" y="376" font-size="12" fill="#1e293b" text-anchor="middle">净化 Windows 载荷</text>
+  <text x="360" y="394" font-size="10" fill="#64748b" text-anchor="middle">删 PE/DLL/win32 原生模块，留 pak · locales · web-standalone</text>
+  <!-- 2→3: 326+5=331 → 354-11=343 -->
+  <path d="M360,331 L 360,343" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 4: y=436, h=54（两行）, bottom=490 -->
+  <rect x="160" y="436" width="400" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="176" y="450" font-size="11" fill="#b45309">4</text>
+  <text x="360" y="458" font-size="12" fill="#1e293b" text-anchor="middle">原生模块 Linux 化（关键修复）</text>
+  <text x="360" y="476" font-size="10" fill="#64748b" text-anchor="middle">npm linux-x64 包替换 + Electron headers 重编译（ABI 145）</text>
+  <!-- 3→4: 408+5=413 → 436-11=425 -->
+  <path d="M360,413 L 360,425" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 5: y=518, h=36, bottom=554 -->
+  <rect x="160" y="518" width="400" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="176" y="532" font-size="11" fill="#64748b">5</text>
+  <text x="360" y="540" font-size="12" fill="#1e293b" text-anchor="middle">获取 Electron 41.3.0 linux-x64 runtime（CDN 加速）</text>
+  <!-- 4→5: 490+5=495 → 518-11=507 -->
+  <path d="M360,495 L 360,507" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 6: y=582, h=54（两行）, bottom=636 -->
+  <rect x="160" y="582" width="400" height="54" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="176" y="596" font-size="11" fill="#64748b">6</text>
+  <text x="360" y="604" font-size="12" fill="#1e293b" text-anchor="middle">组装 /opt/OpenDesign</text>
+  <text x="360" y="622" font-size="10" fill="#64748b" text-anchor="middle">config 保持官方 11 字段 · 禁用自动更新 · vela/opencode 降级</text>
+  <!-- 5→6: 554+5=559 → 582-11=571 -->
+  <path d="M360,559 L 360,571" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 7: y=664, h=36, bottom=700 -->
+  <rect x="160" y="664" width="400" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="176" y="678" font-size="11" fill="#64748b">7</text>
+  <text x="360" y="686" font-size="12" fill="#1e293b" text-anchor="middle">图标 / desktop / wrapper / 维护脚本 / SUID</text>
+  <!-- 6→7: 636+5=641 → 664-11=653 -->
+  <path d="M360,641 L 360,653" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 8: y=728, h=36, bottom=764 -->
+  <rect x="160" y="728" width="400" height="36" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="176" y="742" font-size="11" fill="#64748b">8</text>
+  <text x="360" y="750" font-size="12" fill="#1e293b" text-anchor="middle">打包 deb / rpm（rpmbuild 缺失则跳过）</text>
+  <!-- 7→8: 700+5=705 → 728-11=717 -->
+  <path d="M360,705 L 360,717" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ 产物（容器外） ============ -->
+  <!-- deb: x=100, y=810, w=240, h=36, center=220, bottom=846 -->
+  <rect x="100" y="810" width="240" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="220" y="832" font-size="12" fill="#166534" text-anchor="middle">open-design_0.27.0_amd64.deb</text>
+
+  <!-- rpm: x=380, y=810, w=240, h=36, center=500, bottom=846 -->
+  <rect x="380" y="810" width="240" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="500" y="832" font-size="12" fill="#166534" text-anchor="middle">open-design-0.27.0-1.x86_64.rpm</text>
+
+  <!-- 容器 → 产物: 780+5=785 → 810-11=799 -->
+  <path d="M220,785 L 220,799" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <path d="M500,785 L 500,799" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- 图例（body 之外，整体 150..574, center≈362） -->
+  <rect x="150" y="866" width="12" height="12" rx="2" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="166" y="876" font-size="10" fill="#64748b">输入源</text>
+  <rect x="226" y="866" width="12" height="12" rx="2" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="242" y="876" font-size="10" fill="#64748b">关键修复</text>
+  <rect x="318" y="866" width="12" height="12" rx="2" fill="#f8fafc" stroke="#64748b"/>
+  <text x="334" y="876" font-size="10" fill="#64748b">处理步骤</text>
+  <rect x="410" y="866" width="12" height="12" rx="2" fill="#d1fae5" stroke="#22c55e"/>
+  <text x="426" y="876" font-size="10" fill="#64748b">产物</text>
+  <rect x="474" y="866" width="12" height="12" rx="2" fill="none" stroke="#94a3b8" stroke-dasharray="4,3"/>
+  <text x="490" y="876" font-size="10" fill="#64748b">可选基底 / 容器</text>
+</svg>

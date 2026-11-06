@@ -51,6 +51,11 @@ codearts *args:
 deveco-studio *args:
     @just port deveco-studio {{ args }}
 
+# 移植 open-design（Open Design，Windows x64 NSIS exe → deb/rpm）
+[group('soft')]
+open-design *args:
+    @just port open-design {{ args }}
+
 # 清理指定项目目录下的 build/ 产物
 clean dir:
     rm -rf {{ dir }}/build
