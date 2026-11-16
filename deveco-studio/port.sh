@@ -60,8 +60,7 @@ DEVECO_LIBRARY_DIR="${DEVECO_LIBRARY_DIR:-$HOME/Library}"
 #   build/work  — 中间解压与组装树（跨次复用，避免重复解压）
 #   build/out   — 最终产物（tarball / install-cli-tools.sh）
 # --------------------------------------------------------------------------- #
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-ROOT="$SCRIPT_DIR/build"
+ROOT="$(pwd)/build"
 CACHE_DIR="$ROOT/cache"
 WORK_DIR="$ROOT/work"
 OUT_DIR="$ROOT/out"

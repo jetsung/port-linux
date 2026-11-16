@@ -125,7 +125,7 @@ echo "  目标平台:     $BUILD_PLATFORM (deb=$BUILD_DEB rpm=$BUILD_RPM)"
 echo
 
 # ---------- 工作目录 ----------
-WORK="$(mktemp -d)"
+WORK="$(mktemp -d "$CWD/.build-work.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 cd "$WORK"
 info "工作目录: $WORK"

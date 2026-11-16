@@ -194,8 +194,7 @@ fi
 is_url() { [[ "$1" == http://* || "$1" == https://* ]]; }
 
 # ---------- 目录布局 ----------
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-ROOT="$SCRIPT_DIR/build"
+ROOT="$(pwd)/build"
 CACHE_DIR="$ROOT/cache"
 WORK_DIR="$ROOT/work"
 OUT_DIR="$ROOT/out"

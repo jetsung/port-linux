@@ -255,8 +255,7 @@ extract_version() {
 
 is_url() { [[ "$1" == http://* || "$1" == https://* ]]; }
 
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-ROOT="$SCRIPT_DIR/build"
+ROOT="$(pwd)/build"
 CACHE_DIR="$ROOT/cache"
 OUT_DIR="$ROOT/out"
 mkdir -p "$CACHE_DIR" "$OUT_DIR"

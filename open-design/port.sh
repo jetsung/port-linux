@@ -56,7 +56,7 @@ Windows x64 setup.exe 为源：解 NSIS 双层 payload 得到官方发布态业�
   DEBUG=1                      调试模式（set -eux，打印每条命令）
   IS_CHINA=1                   中国网络环境：GitHub 系域名走 CDN 加速，npm 走镜像
   CDN=<url>                    CDN 前缀地址（默认 https://fastfile.asfd.cn/）
-  BUILD_ROOT=<dir>             构建工作目录（默认 <脚本目录>/build；磁盘紧张时可指向 /tmp）
+  BUILD_ROOT=<dir>             构建工作目录（默认 <执行脚本时所在目录>/build；磁盘紧张时可指向 /tmp）
   EXPECTED_SHA256=<hex>        期望的源包 sha256；或放在源包同目录的 .sha256 文件
   OPENCODE_BIN=<path>          自备的 Linux opencode 可执行文件（内置兜底 agent）
   VELA_BIN=<path>              自备的 Linux vela 可执行文件（云同步组件）
@@ -80,7 +80,7 @@ APP_NAME="open-design"
 APP_TITLE="Open Design"
 INSTALL_DIR="/opt/OpenDesign"
 SKILL_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_ROOT="${BUILD_ROOT:-${SKILL_DIR}/build}"
+BUILD_ROOT="${BUILD_ROOT:-$(pwd)/build}"
 CACHE_DIR="${BUILD_ROOT}/cache"
 WORK_DIR="${BUILD_ROOT}/work"
 OUT_DIR="${BUILD_ROOT}/out"
