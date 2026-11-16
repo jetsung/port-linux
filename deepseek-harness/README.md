@@ -160,6 +160,12 @@ sudo apt install ./deepseek-harness_0.2.1-rc.5_amd64.deb
 deepseek-harness
 ```
 
+> **升级/重装前会自动停止运行中的应用**：deb 的 `preinst`/`prerm` 与 rpm 的
+> `%pre`/`%preun` 会先终止正在运行的 `deepseek-harness` 主进程及其
+> `dsh-desktop-host` 子进程（SIGTERM → 最多等 5 秒 → SIGKILL）。主进程持有
+> Electron 单实例锁，残留的旧 Host 子进程会继续提供旧路由——升级后不清理
+> 就会出现启动白屏、`/api` 与 `/plugins` 全部 404 的现象。
+
 CLI：
 
 ```bash

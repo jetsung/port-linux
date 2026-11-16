@@ -910,6 +910,31 @@ DESKEOF
 write_maintainer_scripts() {
   local dir="$1"
   mkdir -p "$dir"
+  local stop_app='if command -v pkill >/dev/null 2>&1; then
+  pkill -TERM -f /opt/deepseek-harness/electron/deepseek-harness 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -f /opt/deepseek-harness/electron/deepseek-harness >/dev/null 2>&1 || break
+    sleep 0.5
+  done
+  pkill -KILL -f /opt/deepseek-harness/electron/deepseek-harness 2>/dev/null || true
+fi'
+  # preinst：升级/安装前终止运行中的应用。主进程持有单实例锁（会把新启动转发到
+  # 仍运行旧代码的旧实例，表现为白屏），其 dsh-desktop-host 子进程在主进程异常
+  # 退出后会残留并继续提供旧路由。二者都在解包新文件前终止。
+  cat > "$dir/preinst" <<SHEOF
+#!/bin/sh
+set -e
+$stop_app
+exit 0
+SHEOF
+  # prerm：卸载/升级前同样终止，避免删文件时进程仍在使用旧二进制。
+  cat > "$dir/prerm" <<SHEOF
+#!/bin/sh
+set -e
+$stop_app
+exit 0
+SHEOF
+  chmod 0755 "$dir/preinst" "$dir/prerm"
   cat > "$dir/postinst" <<'SHEOF'
 #!/bin/sh
 set -e
@@ -1047,6 +1072,19 @@ cp -a "$STAGE/." %{buildroot}/
 /usr/share/pixmaps/$APP_NAME.png
 /usr/share/doc/$APP_NAME
 
+%pre
+# 安装/升级前终止运行中的应用：主进程持有单实例锁（新启动会被转发到仍运行
+# 旧代码的旧实例，表现为白屏），其 dsh-desktop-host 子进程在主进程异常退出后
+# 会残留并继续提供旧路由。二者都在解包新文件前终止。
+if command -v pkill >/dev/null 2>&1; then
+  pkill -TERM -f '/opt/$APP_NAME/electron/$APP_NAME' 2>/dev/null || :
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -f '/opt/$APP_NAME/electron/$APP_NAME' >/dev/null 2>&1 || break
+    sleep 0.5
+  done
+  pkill -KILL -f '/opt/$APP_NAME/electron/$APP_NAME' 2>/dev/null || :
+fi
+
 %post
 SANDBOX=/opt/$APP_NAME/electron/chrome-sandbox
 if [ -f "\$SANDBOX" ]; then
@@ -1058,6 +1096,16 @@ if [ -f "\$SANDBOX" ]; then
 fi
 update-desktop-database -q /usr/share/applications 2>/dev/null || true
 gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
+
+%preun
+if command -v pkill >/dev/null 2>&1; then
+  pkill -TERM -f '/opt/$APP_NAME/electron/$APP_NAME' 2>/dev/null || :
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -f '/opt/$APP_NAME/electron/$APP_NAME' >/dev/null 2>&1 || break
+    sleep 0.5
+  done
+  pkill -KILL -f '/opt/$APP_NAME/electron/$APP_NAME' 2>/dev/null || :
+fi
 
 %postun
 update-desktop-database -q /usr/share/applications 2>/dev/null || true
